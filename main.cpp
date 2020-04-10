@@ -12,19 +12,56 @@ int generateRand()
     return rand();
 }
 
-void chooseStarterPokemon(int& pokemonNumber, int& playerPokemonLevel, string& playerPokemon)
+struct pokemon
+{
+    int number;
+    string name;
+    int level;
+
+    pokemon(int _number, string _name, int _level)
+    {
+        number = _number;
+        name = _name;
+        level = _level;
+    }
+
+    pokemon(){};
+
+    void chooseNumber()
+    {
+        int num;
+        cin >> num;
+        number = num;
+    }
+};
+
+struct coordinate
+{
+   int rowPosition;
+   int columnPosition;
+   coordinate(){};
+   coordinate(int _row, int _col)
+   {
+       rowPosition = _row;
+       columnPosition = _col;
+   }
+};
+
+void chooseStarterPokemon(pokemon& player)
 {
     cout << "Choose your pokemon\n";
-    for(int i = 0; i < sizeof(pokemonList)/sizeof(pokemonList[0]); i++)
+    for(unsigned int i = 0; i < sizeof(pokemonList)/sizeof(pokemonList[0]); i++)
     {
         cout << "Press " << i << " to choose " << pokemonList[i] << endl;
     }
-    cin >> pokemonNumber;
-    cout << "Your pokemon is level " << playerPokemonLevel << " " << pokemonList[pokemonNumber] << endl;
-    playerPokemon = pokemonList[pokemonNumber];
+    player.chooseNumber();
+    player.level = 5;
+
+    cout << "Your pokemon is level " << player.level << " " << pokemonList[player.number] << endl;
+    player.name = pokemonList[player.number];
 }
 
-void spawnPlayground(char board[][10], int& playerRowPosition, int& playerColumnPosition)
+void spawnPlayground(char board[][10], coordinate& player)
 {
     for(int i = 0; i <= 10; i++)
     {
@@ -34,7 +71,7 @@ void spawnPlayground(char board[][10], int& playerRowPosition, int& playerColumn
             else board[i][j] = '*';
         }
     }
-    board[playerRowPosition][playerColumnPosition] = 'O';
+    board[player.rowPosition][player.columnPosition] = 'O';
     for(int i = 0; i < 10; i++)
         {
             for(int j = 0; j < 10; j++)
@@ -51,36 +88,37 @@ void getMove(char& moveDirection)
     cin >> moveDirection;
 }
 
-void updatePlayGround(const char& moveDirection, char board[][10], int& playerRowPosition, int& playerColumnPosition)
+void updatePlayGround(const char& moveDirection, char board[][10], coordinate& player)
 {
-        if(moveDirection == moveUp)
+        if(moveDirection == moveUp || moveDirection == moveLeft || moveDirection == moveDown || moveDirection == moveRight)
         {
-            board[playerRowPosition - 1][playerColumnPosition] = 'O';
-            if(playerRowPosition < bushRow)  board[playerRowPosition][playerColumnPosition] = '_';
-            else board[playerRowPosition][playerColumnPosition] = '*';
-            playerRowPosition--;
+
+            if(player.rowPosition < bushRow)  board[player.rowPosition][player.columnPosition] = '_';
+            else board[player.rowPosition][player.columnPosition] = '*';
+
+            if(moveDirection == moveUp)
+            {
+               player.rowPosition--;
+               board[player.rowPosition - 1][player.columnPosition] = 'O';
+            }
+
+            else if(moveDirection == moveLeft)
+            {
+                board[player.rowPosition][player.columnPosition - 1] = 'O';
+                player.columnPosition--;
+            }
+            else if(moveDirection == moveDown)
+            {
+                board[player.rowPosition + 1][player.columnPosition] = 'O';
+                player.rowPosition++;
+            }
+            else if(moveDirection == moveRight)
+            {
+                board[player.rowPosition][player.columnPosition + 1] = 'O';
+                player.columnPosition++;
+            }
         }
-        if(moveDirection == moveLeft)
-        {
-            board[playerRowPosition][playerColumnPosition - 1] = 'O';
-            if(playerRowPosition < bushRow)  board[playerRowPosition][playerColumnPosition] = '_';
-            else board[playerRowPosition][playerColumnPosition] = '*';
-            playerColumnPosition--;
-        }
-        if(moveDirection == moveDown)
-        {
-            board[playerRowPosition + 1][playerColumnPosition] = 'O';
-            if(playerRowPosition < bushRow)  board[playerRowPosition][playerColumnPosition] = '_';
-            else board[playerRowPosition][playerColumnPosition] = '*';
-            playerRowPosition++;
-        }
-        if(moveDirection == moveRight)
-        {
-            board[playerRowPosition][playerColumnPosition + 1] = 'O';
-            if(playerRowPosition < bushRow)  board[playerRowPosition][playerColumnPosition] = '_';
-            else board[playerRowPosition][playerColumnPosition] = '*';
-            playerColumnPosition++;
-        }
+
         for(int i = 0; i < 10; i++)
         {
             for(int j = 0; j < 10; j++)
@@ -91,33 +129,33 @@ void updatePlayGround(const char& moveDirection, char board[][10], int& playerRo
         }
 }
 
-void combatResult(int& playerPokemonLevel,const int& wildPokemonLevel, const string& playerPokemon,const string& wildPokemon, bool& gameStatus)
+void combatResult(pokemon& player, pokemon& wild, bool& gameStatus)
 {
-    if(playerPokemonLevel >= wildPokemonLevel)
+    if(player.level >= wild.level)
     {
-        cout << "Your " << playerPokemon << " used Tackle\n";
-        cout << "Wild " << wildPokemon << " has faint\n";
-        playerPokemonLevel++;
-        cout << "Your " << playerPokemon << " is now level " << playerPokemonLevel << endl;
+        cout << "Your " << player.name << " used Tackle\n";
+        cout << "Wild " << wild.name << " has faint\n";
+        player.level++;
+        cout << "Your " << player.name << " is now level " << player.level << endl;
     }
     else
     {
-        cout << "Wild " << wildPokemon << " used Tackle\n";
-        cout << "Your " << playerPokemon << " has faint\n";
+        cout << "Wild " << wild.name << " used Tackle\n";
+        cout << "Your " << player.name << " has faint\n";
         gameStatus = false;
     }
 }
 
-void battle(string& wildPokemon, int& wildPokemonLevel, int& playerPokemonLevel, const string& playerPokemon, bool& gameStatus)
+void battle(pokemon player, pokemon wild, bool& gameStatus)
 {
      int a = (generateRand() % 10);
             //cout << "Your number is " << a << endl;
             if(encounterRate[a] == 1)
             {
                 char FoR;
-                wildPokemon = pokemonList[a%3];
-                wildPokemonLevel = generateRand() % (playerPokemonLevel + a);
-                cout << "You encounter a wild " << wildPokemon << " level " << wildPokemonLevel<< endl;
+                wild.name = pokemonList[a%3];
+                wild.level = generateRand() % (player.level + a);
+                cout << "You encounter a wild " << wild.name << " level " << wild.level<< endl;
                 do
                 {
                     cout << "Press F to fight, Press R to run\n";
@@ -125,9 +163,9 @@ void battle(string& wildPokemon, int& wildPokemonLevel, int& playerPokemonLevel,
 
                     if(FoR == 'f')
                     {
-                        combatResult(playerPokemonLevel, wildPokemonLevel, playerPokemon, wildPokemon, gameStatus);
+                        combatResult(player, wild, gameStatus);
                     }
-                    else if(FoR == 'r') cout << "You have ran away from " << wildPokemon << endl;
+                    else if(FoR == 'r') cout << "You have ran away from " << wild.name << endl;
                     else cout << "Wrong button!!\n";
                 }while(FoR != 'f' && FoR != 'r');
             }
@@ -137,26 +175,26 @@ void battle(string& wildPokemon, int& wildPokemonLevel, int& playerPokemonLevel,
 
 int main()
 {
-    int BushRow, BushColumn, pokemonNumber;
     char board[10][10], moveDirection;
-    int playerRowPosition = 3, playerColumnPosition = 4, playerPokemonLevel = 5, wildPokemonLevel;
     string playerPokemon, wildPokemon;
     bool gameStatus = true;
+    pokemon player, wild;
+    coordinate playerLocation(3, 4);
 
     //Pokemon starter pack
-    chooseStarterPokemon(pokemonNumber, playerPokemonLevel, playerPokemon);
+    chooseStarterPokemon(player);
     //spawn playground;
-    spawnPlayground(board, playerRowPosition, playerColumnPosition);
+    spawnPlayground(board,playerLocation);
     //player move
     do
     {
         getMove(moveDirection);
-        updatePlayGround(moveDirection, board, playerRowPosition, playerColumnPosition);
+        updatePlayGround(moveDirection, board, playerLocation);
 
-        if(playerRowPosition >= bushRow)
-            //encouter pokemon
-            battle(wildPokemon, wildPokemonLevel, playerPokemonLevel, playerPokemon, gameStatus);
+        if(playerLocation.rowPosition >= bushRow)
+            //encounter pokemon
+            battle(player, wild, gameStatus);
 
-    }while( gameStatus == true);
+    }while(gameStatus == true);
 }
 
