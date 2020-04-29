@@ -3,25 +3,30 @@
 #include<bits/stdc++.h>
 using namespace std;
 
-const int ScreenWidth = 640;
-const int ScreenHeight = 480;
-const int LEVEL_WIDTH = 1280;
-const int LEVEL_HEIGHT = 960;
-
-const int CharacterWidth = 30;
-const int CharacterHeight = 30;
-int X_Position_of_Character = (ScreenWidth/2) - CharacterWidth;
-int Y_Position_of_Character = (ScreenHeight/2) - CharacterHeight;
+const int ScreenWidth = 640, ScreenHeight = 480;
+const int VelX = 5, VelY = 5;
+const int CharacterWidth = 30, CharacterHeight = 30;
+const int frameTurn[4] = {0, 1, 0 ,2};
+const bool encouterRateBoard[] = {1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+int X_Position_of_Character = (ScreenWidth/2) - CharacterWidth, Y_Position_of_Character = (ScreenHeight/2) - CharacterHeight;
+int Position_of_Pointer[2][2] = {{375, 382}, {400, 382}};
+int X_Position_of_Poiter = Position_of_Pointer[0][0], Y_Position_of_Pointer = Position_of_Pointer[0][1];
+const int Direction = 2, TOTAL_POKEMON = 5;
 enum KeyPressesSurFaces
 {
-    KEY_PRESS_SURFACE_DEFAULT,
-	KEY_PRESS_SURFACE_UP,
-	KEY_PRESS_SURFACE_LEFT,
-	KEY_PRESS_SURFACE_DOWN,
-	KEY_PRESS_SURFACE_RIGHT,
-	KEY_PRESS_SURFACE_TOTAL
+    KEY_PRESS_SURFACE_DOWN,//stand: 0
+	KEY_PRESS_SURFACE_LEFT,//1
+	KEY_PRESS_SURFACE_RIGHT,//2
+	KEY_PRESS_SURFACE_UP,//3
+	KEY_PRESS_SURFACE_TOTAL//4
 };
-
+enum FrameCount
+{
+    FISRT_FRAME,//0
+    SECOND_FRAME,//1
+    THIRD_FRAME,//2
+    TOTAL_FRAME//3
+};
 bool init();
 bool loadMedia();
 void close();
@@ -36,9 +41,12 @@ SDL_Texture* gCurrentSurface = NULL;
 //The window renderer
 SDL_Renderer* gRenderer = NULL;
 
-SDL_Rect gSpriteClips[4];
+SDL_Rect SpriteClips[KEY_PRESS_SURFACE_TOTAL][TOTAL_FRAME];
+SDL_Rect pokemonFighting[TOTAL_POKEMON][Direction];
 SDL_Rect playGround;
 SDL_Rect currentRect;
+SDL_Rect combatBox;
+SDL_Rect Pointer;
 
 class LTexture
 {
@@ -128,24 +136,32 @@ public:
     {
         return mHeight;
     }
-    void moveTexture(SDL_Event& e)
+    void moveTexture(SDL_Event& e, int& countFrame, bool& run)
     {
-
+        run = false;
         if(e.key.keysym.sym == SDLK_RIGHT && X_Position_of_Character < 610)
         {
-            X_Position_of_Character +=25;
+            X_Position_of_Character += VelX;
+            currentRect = SpriteClips[KEY_PRESS_SURFACE_RIGHT][frameTurn[countFrame%4]];
+            countFrame++;
         }
         else if(e.key.keysym.sym == SDLK_LEFT && X_Position_of_Character > 10)
         {
-            X_Position_of_Character -=25;
+            X_Position_of_Character -= VelX;
+            currentRect = SpriteClips[KEY_PRESS_SURFACE_LEFT][frameTurn[countFrame%4]];
+            countFrame++;
         }
         else if(e.key.keysym.sym == SDLK_UP && Y_Position_of_Character > 10)
         {
-            Y_Position_of_Character-=25;
+            Y_Position_of_Character-= VelY;
+            currentRect = SpriteClips[KEY_PRESS_SURFACE_UP][frameTurn[countFrame%4]];
+            countFrame++;
         }
         else if(e.key.keysym.sym == SDLK_DOWN && Y_Position_of_Character < 430)
         {
-            Y_Position_of_Character+=25;
+            Y_Position_of_Character+= VelY;
+            currentRect = SpriteClips[KEY_PRESS_SURFACE_DOWN][frameTurn[countFrame%4]];
+            countFrame++;
         }
     }
 
@@ -160,6 +176,9 @@ private:
 
 LTexture gSpriteSheetTexture;
 LTexture gPlayGround;
+LTexture gCombatBox;
+LTexture gPointer;
+LTexture gPokemonFighting;
 bool init()
 {
     bool success = true;
@@ -219,12 +238,6 @@ bool loadMedia()
 {
     bool success = true;
 
-    //gKeyPressesSurfaces[KEY_PRESS_SURFACE_DEFAULT] = loadTexture("data/stand.png");
-    //gKeyPressesSurfaces[KEY_PRESS_SURFACE_DOWN] = loadTexture("data/stand.png");
-    //gKeyPressesSurfaces[KEY_PRESS_SURFACE_LEFT] = loadTexture("data/turnLeft.png");
-    //gKeyPressesSurfaces[KEY_PRESS_SURFACE_RIGHT] = loadTexture("data/turnRight.png");
-    //gKeyPressesSurfaces[KEY_PRESS_SURFACE_UP] = loadTexture("data/moveUp.png");
-    //gSpriteClips = loadTexture("data/mpvement.png");
     if(!gSpriteSheetTexture.loadFromFile("data/movement.png"))
     {
         cout << "Failed to load sprite sheet texture!\n";
@@ -232,26 +245,41 @@ bool loadMedia()
     }
     else
     {
-        gSpriteClips[0].x = 0;
-        gSpriteClips[0].y = 0;
-        gSpriteClips[0].w = 30;
-        gSpriteClips[0].h = 30;
+        //default or down
+        for(int i = 0; i < KEY_PRESS_SURFACE_TOTAL; i ++)
+        {
 
-        gSpriteClips[1].x = 0;
-        gSpriteClips[1].y = 30;
-        gSpriteClips[1].w = 30;
-        gSpriteClips[1].h = 30;
-
-        gSpriteClips[2].x = 0;
-        gSpriteClips[2].y = 60;
-        gSpriteClips[2].w = 30;
-        gSpriteClips[2].h = 30;
-
-        gSpriteClips[3].x = 0;
-        gSpriteClips[3].y = 90;
-        gSpriteClips[3].w = 30;
-        gSpriteClips[3].h = 30;
+            for(int j = 0; j < TOTAL_FRAME; j++)
+            {
+                SpriteClips[i][j].x = j*CharacterWidth;
+                SpriteClips[i][j].y = i*CharacterHeight;
+                SpriteClips[i][j].w = CharacterWidth;
+                SpriteClips[i][j].h = CharacterHeight;
+            }
+        }
     }
+
+    if(!gPokemonFighting.loadFromFile("data/Pokemon.png"))
+    {
+        cout << "Failed to load Pokemon.png\n";
+        success = false;
+    }
+    else
+    {
+       for(int i = 0; i < TOTAL_POKEMON; i++)
+       {
+           for(int j = 0; j < Direction; j++)
+           {
+               pokemonFighting[i][j].x = j*60;
+               pokemonFighting[i][j].y = i*60;
+               pokemonFighting[i][j].w = (j + 1)*60;
+               if(j == 0) pokemonFighting[i][j].w = 60;
+               if(j == 1) pokemonFighting[i][j].w = 150;
+               pokemonFighting[i][j].h = 60;
+           }
+       }
+    }
+
     if(!gPlayGround.loadFromFile("data/Pokemon_playground.png"))
     {
         cout << "Failed to load sprite sheet texture!\n";
@@ -264,20 +292,45 @@ bool loadMedia()
         playGround.w = ScreenWidth;
         playGround.h = ScreenHeight;
     }
-    //gTitle = loadTexture("data/Pokemon_playground.png");
-    /*if(gKeyPressesSurfaces[KEY_PRESS_SURFACE_DEFAULT] == NULL || gKeyPressesSurfaces[KEY_PRESS_SURFACE_DOWN] == NULL || gKeyPressesSurfaces[KEY_PRESS_SURFACE_LEFT] == NULL || gKeyPressesSurfaces[KEY_PRESS_SURFACE_RIGHT] == NULL || gKeyPressesSurfaces[KEY_PRESS_SURFACE_UP] == NULL || gTitle == NULL)
+
+    if(!gCombatBox.loadFromFile("data/BattleScreen.png"))
     {
-        cout << "Failed to load image!" << endl;
+        cout << "Failed to load title\n";
         success = false;
-    }*/
+    }
+    else
+    {
+        combatBox.x = 0;
+        combatBox.y = 0;
+        combatBox.w = ScreenWidth;
+        combatBox.h = ScreenHeight;
+    }
+    if(!gPointer.loadFromFile("data/Pointer.png"))
+    {
+        cout << "Failed to load Pointer.png\n";
+        success = false;
+    }
+    else
+    {
+        Pointer.x = 0;
+        Pointer.y = 0;
+        Pointer.w = 40;
+        Pointer.h = 40;
+    }
     return success;
 }
 
+int generateRandomNumber()
+{
+    srand(time(0));
+    return rand();
+}
 
 void close()
 {
     gSpriteSheetTexture.free();
-
+    gPlayGround.free();
+    gCombatBox.free();
     //SDL_FreeSurface(gStretchedSurface);
     SDL_DestroyRenderer(gRenderer);
     SDL_DestroyWindow(gWindow);
@@ -290,6 +343,7 @@ void close()
 
 int main(int argc, char* argv[])
 {
+
     if(!init())
     {
         cout << "Failed to initialize!" << endl;
@@ -303,10 +357,13 @@ int main(int argc, char* argv[])
         else
         {
             bool quit = false;
+            bool run = false;
             SDL_Event  e;
-            //SDL_Rect camera = {0, 0, ScreenWidth, ScreenHeight};
-            //gCurrentSurface = gKeyPressesSurfaces[KEY_PRESS_SURFACE_DEFAULT];
-            currentRect = gSpriteClips[0];
+            currentRect = SpriteClips[KEY_PRESS_SURFACE_DOWN][0];
+            SDL_Rect currentCharacterPokemon;
+            SDL_Rect currentWildPokemon = {420, 90, 120, 120};
+            int countFrame = 0;
+
             while(!quit)
             {
                 while(SDL_PollEvent(&e) != 0)
@@ -315,37 +372,76 @@ int main(int argc, char* argv[])
                     {
                         quit = true;
                     }
-                    else if(e.type == SDL_KEYDOWN && e.key.repeat == 0)
+                    else if(e.type == SDL_KEYDOWN)
                     {
-                        switch(e.key.keysym.sym)
-                        {
-                        case SDLK_RIGHT:
-                            gSpriteSheetTexture.moveTexture(e);
-                            currentRect = gSpriteClips[2];
-                            break;
-                        case SDLK_LEFT:
-                             gSpriteSheetTexture.moveTexture(e);
-                            currentRect = gSpriteClips[1];
-                            break;
-                        case SDLK_DOWN:
-                            gSpriteSheetTexture.moveTexture(e);
-                            currentRect = gSpriteClips[0];
-                            break;
-                        case SDLK_UP:
-                             gSpriteSheetTexture.moveTexture(e);
-                            currentRect = gSpriteClips[3];
-                            break;
-                        default:
-                            currentRect = gSpriteClips[0];
-                            break;
-                        }
+                        gSpriteSheetTexture.moveTexture(e, countFrame, run);
                     }
                 }
-                //Title.setViewport(gRenderer, gTitle);
-                //character.setViewport(gRenderer, gCurrentSurface);
                 SDL_RenderClear(gRenderer);
+
+
+                //SDL_RenderPresent(gRenderer);
                 gPlayGround.render(0, 0, &playGround);
                 gSpriteSheetTexture.render(X_Position_of_Character, Y_Position_of_Character, &currentRect);
+
+                while(Y_Position_of_Character >= 280 && encouterRateBoard[generateRandomNumber()%10] && !run)
+                {
+
+                    while(!quit)
+                    {
+                        gCombatBox.render(0, 0, &combatBox);
+                        while(SDL_PollEvent(&e) != 0)
+                        {
+                            if(e.type == SDL_QUIT)
+                            {
+                                quit = true;
+                            }
+
+                            else if(e.type == SDL_KEYDOWN)
+                            {
+                                switch(e.key.keysym.sym)
+                                {
+                                    case SDLK_RIGHT:
+                                    {
+                                        X_Position_of_Poiter = Position_of_Pointer[1][0];
+                                        Y_Position_of_Pointer = Position_of_Pointer[1][1];
+                                        break;
+                                    }
+                                    case SDLK_LEFT:
+                                    {
+                                        X_Position_of_Poiter = Position_of_Pointer[0][0];
+                                        Y_Position_of_Pointer = Position_of_Pointer[0][1];
+                                        break;
+                                    }
+                                    case SDLK_SPACE:
+                                    {
+                                        if(X_Position_of_Poiter == Position_of_Pointer[0][0]) run = false;
+                                        else run = true;
+                                        break;
+                                    }
+                                    default:
+                                    {
+                                        X_Position_of_Poiter = Position_of_Pointer[0][0];
+                                        Y_Position_of_Pointer = Position_of_Pointer[0][1];
+                                    }
+                                }
+                            }
+                        }
+
+                        if(run == false)
+                        {
+                            currentWildPokemon = pokemonFighting[0][0];
+                            currentCharacterPokemon = pokemonFighting[1][1];
+                            gPokemonFighting.render(420, 90, &currentWildPokemon);
+                            gPokemonFighting.render(60, 240, &currentCharacterPokemon);
+                        }
+                        gPointer.render(X_Position_of_Poiter, Y_Position_of_Pointer, &Pointer);
+                        if(run || quit) break;
+                        SDL_RenderPresent(gRenderer);
+                    }
+                    if(run || quit) break;
+                }
+
                 SDL_RenderPresent(gRenderer);
             }
         }
