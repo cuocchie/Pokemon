@@ -1,10 +1,11 @@
 #include<SDL.h>
 #include<SDL_image.h>
+#include <SDL_ttf.h>
 #include<bits/stdc++.h>
 using namespace std;
 
 const int ScreenWidth = 640, ScreenHeight = 480;
-const int ScreenFPS = 60, ScreenTickPerFrame = 1000/ScreenFPS;
+const int ScreenFPS = 60, ScreenTickPerFrame = 10000/ScreenFPS;
 const int VelX = 5, VelY = 5;
 const int CharacterWidth = 30, CharacterHeight = 30;
 const int  frameTurn[4] = {0, 1, 0 ,2};
@@ -43,7 +44,11 @@ SDL_Texture* loadTexture(string path);
 SDL_Texture* gCurrentSurface = NULL;
 //The window renderer
 SDL_Renderer* gRenderer = NULL;
+//Rendered texture
+TTF_Font* gFont = NULL;
 
+SDL_Rect MenuScreen, MenuOptions[2][2];
+SDL_Rect TrainerScreen, Trainer[6];
 SDL_Rect SpriteClips[KEY_PRESS_SURFACE_TOTAL][TOTAL_FRAME];
 SDL_Rect pokemonFighting[TOTAL_POKEMON][Direction];
 SDL_Rect playGround;
@@ -51,6 +56,7 @@ SDL_Rect currentRect;
 SDL_Rect combatBox;
 SDL_Rect Pointer;
 SDL_Rect PlayerHealthBar, WildHealthBar;
+
 
 class LTimer
 {
@@ -208,6 +214,36 @@ public:
         return mTexture != NULL;
     }
 
+    bool loadFromRenderedText(string textureText, SDL_Color textColor)
+    {
+        free();
+        //Render text surface
+
+        SDL_Surface* textSurface = TTF_RenderText_Solid(gFont, textureText.c_str(), textColor);
+        if(textSurface == NULL)
+        {
+            cout << "Unable to render text surface! SDL_ttf Error: " << TTF_GetError() << endl;
+        }
+        else
+        {
+            //Create texture from surface pixels
+            mTexture = SDL_CreateTextureFromSurface(gRenderer, textSurface);
+            if(mTexture == NULL)
+            {
+                cout << "Unable to create texture from rendered text! SDL Error: " << SDL_GetError() << endl;
+            }
+            else
+            {
+                //Get image dimensions
+                mWidth = textSurface -> w;
+                mHeight = textSurface -> h;
+            }
+            SDL_FreeSurface(textSurface);
+        }
+
+        return mTexture != NULL;
+    }
+
     //Deallocates texture
     void free()
     {
@@ -280,13 +316,18 @@ private:
     int mHeight;
 
 };
-
+//rendered texture
+///text:
+LTexture gPLayerLevel, gWildLevel;
+///image:
 LTexture gSpriteSheetTexture;
 LTexture gPlayGround;
 LTexture gCombatBox;
 LTexture gPointer;
 LTexture gPokemonFighting;
 LTexture gPlayerHealthBar, gWildHealthBar;
+LTexture gMenuScreen, gMenuOptions;
+LTexture gTrainerScreen, gTrainer;
 bool init()
 {
     bool success = true;
@@ -332,6 +373,13 @@ bool init()
                 if(!(IMG_Init(imgFlags) & imgFlags))
                 {
                     cout << "SDL_image could not initialize! SDl_image Error: " << IMG_GetError();
+                    success = false;
+                }
+
+                //Initialize SDL_ttf
+                if(TTF_Init() == -1)
+                {
+                    cout << "SDL_ttf could not initialize! SDL_ttf Error: " << TTF_GetError();
                     success = false;
                 }
             }
@@ -441,7 +489,73 @@ bool loadMedia()
         PlayerHealthBar = {0, 0, HealthBarWidth, 10};
         WildHealthBar = {0, 0, HealthBarWidth, 10};
     }
+
+    if(!gMenuScreen.loadFromFile("data/Menu.png"))
+    {
+        cout << "Failed to load Menu.png" << endl;
+        success = false;
+    }
+    else
+    {
+        MenuScreen = {0, 0, ScreenWidth, ScreenHeight};
+    }
+
+    if(!gMenuOptions.loadFromFile("data/MenuOptions.png"))
+    {
+        cout << "Failed to load MenuOptions.png" << endl;
+        success = false;
+    }
+    else
+    {
+        for(int i = 0; i < 2; i++)
+        {
+            for(int j = 0; j < 2; j++)
+            {
+                MenuOptions[i][j] = {j*130, i*32, 130, 30};
+            }
+        }
+    }
+    if(!gTrainerScreen.loadFromFile("data/ChooseTrainer.png"))
+    {
+        cout << "Failed to load ChooseTrainer.png" << endl;
+    }
+    else
+    {
+        TrainerScreen = {0, 0, ScreenWidth, ScreenHeight};
+    }
+    if(!gTrainer.loadFromFile("data/Trainer.png"))
+    {
+        cout << "Failed to load Trainer.png" << endl;
+    }
+    else
+    {
+        for(int i = 0; i < 6; i++)
+        {
+            Trainer[i] = {i*200, 0, 200, 300};
+        }
+    }
     return success;
+}
+
+void loadText(string s1, string s2)
+{
+    gFont = TTF_OpenFont("ARCADECLASSIC.ttf", 38);
+    if(gFont == NULL)
+    {
+        cout << "Failed to load font! SDL_tff Error: " << TTF_GetError() << endl;
+    }
+    else
+    {
+        SDL_Color textColor = {0, 0, 0};
+        if(!gPLayerLevel.loadFromRenderedText(s1, textColor))
+        {
+            cout << "Failed to render text texture" << endl;
+        }
+        else if(!gWildLevel.loadFromRenderedText(s2, textColor))
+        {
+            cout << "Failed to render text texture" << endl;
+        }
+    }
 }
 
 int generateRandomNumber()
@@ -455,6 +569,8 @@ void close()
     gSpriteSheetTexture.free();
     gPlayGround.free();
     gCombatBox.free();
+    TTF_CloseFont(gFont);
+    gFont = NULL;
     //SDL_FreeSurface(gStretchedSurface);
     SDL_DestroyRenderer(gRenderer);
     SDL_DestroyWindow(gWindow);
@@ -482,10 +598,13 @@ int main(int argc, char* argv[])
         {
             bool quit = false;
             bool run = false, fight = false;
+            bool PlayerChoosePlay = true, PlayerChooseQuit = false, QuitGameMenu = false, QuitChooseTrainer = false;
+            int TrainerOrder = 0;
             SDL_Event  e;
             currentRect = SpriteClips[KEY_PRESS_SURFACE_DOWN][0];
             SDL_Rect currentCharacterPokemon;
             SDL_Rect currentWildPokemon = {420, 90, 120, 120};
+            int PlayerPokemonLevel = 5, WildPokemonLevel;
             int countFrame = 0, Move = 0;
 
             LTimer fpsTimer;
@@ -493,9 +612,125 @@ int main(int argc, char* argv[])
             fpsTimer.start();
             while(!quit)
             {
+                //Game Loop
                 capTimer.start();
+                while(!quit && !QuitGameMenu)
+                {
+                    ///Loop for loading menu start game
+                    capTimer.start();
+                    SDL_RenderClear(gRenderer);
+                    gMenuScreen.render(0, 0, &MenuScreen);
+
+                    while(SDL_PollEvent(&e) != 0)
+                    {
+                        if(e.type == SDL_QUIT)
+                        {
+                            quit = true;
+                        }
+                        else if(e.type == SDL_KEYDOWN)
+                        {
+                            switch(e.key.keysym.sym)
+                            {
+                                case SDLK_RIGHT:
+                                {
+                                    PlayerChoosePlay = !PlayerChoosePlay;
+                                    PlayerChooseQuit = !PlayerChooseQuit;
+                                    break;
+                                }
+                                case SDLK_LEFT:
+                                {
+                                    PlayerChoosePlay = !PlayerChoosePlay;
+                                    PlayerChooseQuit = !PlayerChooseQuit;
+                                    break;
+                                }
+                                case SDLK_SPACE:
+                                {
+                                    if(PlayerChooseQuit) quit = true;
+                                    else QuitGameMenu = true;
+                                    break;
+                                }
+                                default:
+                                {
+                                    quit = false;
+                                }
+                            }
+                        }
+                    }
+
+                    gMenuOptions.render(270, 210, &MenuOptions[0][PlayerChoosePlay]);
+                    gMenuOptions.render(270, 254, &MenuOptions[1][PlayerChooseQuit]);
+                    SDL_RenderPresent(gRenderer);
+
+                    countFrame++;
+                    int frameTicks = capTimer.getTicks();
+                    if(frameTicks < ScreenTickPerFrame)
+                    {
+                        SDL_Delay(ScreenTickPerFrame - frameTicks);
+                        gTrainerScreen.render(0, 0, &TrainerScreen);
+                    }
+                }
+
+                while(!quit && !QuitChooseTrainer)
+                {
+                    capTimer.start();
+                    SDL_RenderClear(gRenderer);
+                    gTrainerScreen.render(0, 0, &TrainerScreen);
+
+                    while(SDL_PollEvent(&e) != 0)
+                    {
+                        if(e.type == SDL_QUIT)
+                        {
+                            quit = true;
+                        }
+                        else if(e.type == SDL_KEYDOWN)
+                        {
+                            switch(e.key.keysym.sym)
+                            {
+                            case SDLK_RIGHT:
+                                {
+                                    if(TrainerOrder == 5)
+                                    {
+                                        TrainerOrder = 0;
+                                        break;
+                                    }
+                                    else TrainerOrder ++;
+                                    break;
+                                }
+                            case SDLK_LEFT:
+                                {
+                                    if(TrainerOrder == 0)
+                                    {
+                                        TrainerOrder = 5;
+                                        break;
+                                    }
+                                    else TrainerOrder --;
+                                    break;
+                                }
+                            case SDLK_SPACE:
+                                {
+                                    QuitChooseTrainer = true;
+                                    gTrainer.render(241, 141, &Trainer[TrainerOrder]);
+                                    cout << TrainerOrder << endl;
+                                }
+                            }
+                        }
+                    }
+                    cout << TrainerOrder << endl;
+                    gTrainer.render(240, 140, &Trainer[TrainerOrder]);
+                    SDL_RenderPresent(gRenderer);
+                    if(QuitChooseTrainer) SDL_Delay(500);
+                    countFrame++;
+                    int frameTicks = capTimer.getTicks();
+                    if(frameTicks < ScreenTickPerFrame)
+                    {
+                        SDL_Delay(ScreenTickPerFrame - frameTicks);
+                        gTrainerScreen.render(0, 0, &TrainerScreen);
+                    }
+                }
+
                 while(SDL_PollEvent(&e) != 0)
                 {
+                    ///Loop for loading playground and character position
                     if(e.type == SDL_QUIT)
                     {
                         quit = true;
@@ -514,23 +749,21 @@ int main(int argc, char* argv[])
 
                 SDL_RenderClear(gRenderer);
 
-
-                //SDL_RenderPresent(gRenderer);
                 gPlayGround.render(0, 0, &playGround);
                 gSpriteSheetTexture.render(X_Position_of_Character, Y_Position_of_Character, &currentRect);
 
-
-                cout << "wild: " << WildHealthBar.w << " player: " << PlayerHealthBar.w << endl;
                 while(Y_Position_of_Character >= 280 && encouterRateBoard[generateRandomNumber()%10] && !run)
                 {
+                    //Loop for combat
+                    WildPokemonLevel = generateRandomNumber()%(PlayerPokemonLevel + 1) + 1;
                     while(!quit)
                     {
                         capTimer.start();
                         SDL_RenderClear(gRenderer);
                         gCombatBox.render(0, 0, &combatBox);
-                        cout << "wild: " << WildHealthBar.w << " player: " << PlayerHealthBar.w << endl;
                         while(SDL_PollEvent(&e) != 0)
                         {
+                            //loop for receive combat status RUN or FIGHT
                             if(e.type == SDL_QUIT)
                             {
                                 quit = true;
@@ -576,16 +809,18 @@ int main(int argc, char* argv[])
 
                             currentWildPokemon = pokemonFighting[3][FrontOfPokemon];
                             currentCharacterPokemon = pokemonFighting[4][BackOfPokemon];
-                            gWildHealthBar.render(143, 90, &WildHealthBar);
-                            gPlayerHealthBar.render(477, 300, &PlayerHealthBar);
                             gPokemonFighting.render(430, 100, &currentWildPokemon);
                             gPokemonFighting.render(90, 240, &currentCharacterPokemon);
+                            gWildHealthBar.render(143, 90, &WildHealthBar);
+                            gPlayerHealthBar.render(477, 300, &PlayerHealthBar);
+                            loadText("Lv " + to_string(PlayerPokemonLevel), "Lv " + to_string(WildPokemonLevel));
+                            gPLayerLevel.render(605, 258);
+                            gWildLevel.render(270, 48);
                             SDL_RenderPresent(gRenderer);
                             if(fight == true)
                             {
-                                WildHealthBar.w -= 12;
-                                SDL_Delay(1000);
-                                PlayerHealthBar.w -= 12;
+                                WildHealthBar.w -= PlayerPokemonLevel*6;
+                                PlayerHealthBar.w -= WildPokemonLevel*6;
                             }
                             fight = false;
 
@@ -594,6 +829,7 @@ int main(int argc, char* argv[])
                         SDL_RenderPresent(gRenderer);
                         if(WildHealthBar.w < 0 || PlayerHealthBar.w < 0)
                         {
+                            if(WildHealthBar.w < 0 && PlayerHealthBar.w > 0) PlayerPokemonLevel++;
                             run = true;
                         }
                         ///Cap FPS
