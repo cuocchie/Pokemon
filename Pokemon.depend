@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1588786391 source:d:\project\cpplearn\gamecode\pokemon\sdl.cpp
+1588957073 source:d:\project\cpplearn\gamecode\pokemon\sdl.cpp
 	<SDL.h>
 	<SDL_image.h>
 	<SDL_ttf.h>

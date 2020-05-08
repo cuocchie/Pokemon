@@ -5,13 +5,17 @@
 using namespace std;
 
 const int ScreenWidth = 640, ScreenHeight = 480;
-const int ScreenFPS = 60, ScreenTickPerFrame = 10000/ScreenFPS;
+const int ScreenFPS = 60, ScreenTickPerFrame = 8000/ScreenFPS;
 const int VelX = 5, VelY = 5;
-const int CharacterWidth = 30, CharacterHeight = 30;
+const int CharacterWidth = 40, CharacterHeight = 60;
 const int  frameTurn[4] = {0, 1, 0 ,2};
 const bool encouterRateBoard[] = {1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+const string CharacterName[] = {"Ethan", "Lyra", "Silver", "Whitney", "Blue", "Karen"};
+const string PokemonName[] = {"Bulbasaur", "Charmander", "Squirtle"};
+const string LectureSpeech[] = {"Press SPACE to continue or press E to\nskip instruction.","Hello ", "My name is Professor Oak\nWelcome to the Pokemon World!!", "Before head into Pokemon world,\nlet me show you something", "As being a trainer, your ambition is\nbeing one of the best Pokemon trainer.", "To do that, you have to defeat or catch\nPokemon as much as you can.", "But, you need a Pokemon first.", "Now choose your Pokemon.", "You choose a ","And remember, if you need help,\nyou can meet me the right of the map." ,"Okay, now if you are ready press SPACE\nto enter the Pokemon world. Good luck!"};
 int X_Position_of_Character = (ScreenWidth/2) - CharacterWidth, Y_Position_of_Character = (ScreenHeight/2) - CharacterHeight;
 int Position_of_Pointer[2][2] = {{375, 382}, {400, 382}};
+int Position_of_Target[3][2] = {{40, 80}, {90, 175}, {140, 80}};
 int X_Position_of_Poiter = Position_of_Pointer[0][0], Y_Position_of_Pointer = Position_of_Pointer[0][1];
 const int Direction = 2, TOTAL_POKEMON = 5, FrontOfPokemon = 0, BackOfPokemon = 1;
 int HealthBarWidth = 144;
@@ -51,8 +55,11 @@ SDL_Rect MenuScreen, MenuOptions[2][2];
 SDL_Rect TrainerScreen, Trainer[6];
 SDL_Rect SpriteClips[KEY_PRESS_SURFACE_TOTAL][TOTAL_FRAME];
 SDL_Rect pokemonFighting[TOTAL_POKEMON][Direction];
+SDL_Rect LectureBackground;
+SDL_Rect LectureProf;
+SDL_Rect Target;
 SDL_Rect playGround;
-SDL_Rect currentRect;
+
 SDL_Rect combatBox;
 SDL_Rect Pointer;
 SDL_Rect PlayerHealthBar, WildHealthBar;
@@ -161,6 +168,7 @@ class LTimer
 		bool mStarted;
 };
 
+;
 class LTexture
 {
 public:
@@ -214,12 +222,12 @@ public:
         return mTexture != NULL;
     }
 
-    bool loadFromRenderedText(string textureText, SDL_Color textColor)
+    bool loadFromRenderedText(string textureText, SDL_Color textColor, int Wraped)
     {
         free();
         //Render text surface
 
-        SDL_Surface* textSurface = TTF_RenderText_Solid(gFont, textureText.c_str(), textColor);
+        SDL_Surface* textSurface = TTF_RenderText_Blended_Wrapped(gFont, textureText.c_str(), textColor, Wraped);
         if(textSurface == NULL)
         {
             cout << "Unable to render text surface! SDL_ttf Error: " << TTF_GetError() << endl;
@@ -279,34 +287,7 @@ public:
     {
         return mHeight;
     }
-    void moveTexture(SDL_Event& e, int& countFrame)
-    {
-        //run = false;
-        if(e.key.keysym.sym == SDLK_RIGHT && X_Position_of_Character < 610)
-        {
-            X_Position_of_Character += VelX;
-            currentRect = SpriteClips[KEY_PRESS_SURFACE_RIGHT][frameTurn[countFrame%4]];
-            countFrame++;
-        }
-        else if(e.key.keysym.sym == SDLK_LEFT && X_Position_of_Character > 10)
-        {
-            X_Position_of_Character -= VelX;
-            currentRect = SpriteClips[KEY_PRESS_SURFACE_LEFT][frameTurn[countFrame%4]];
-            countFrame++;
-        }
-        else if(e.key.keysym.sym == SDLK_UP && Y_Position_of_Character > 10)
-        {
-            Y_Position_of_Character-= VelY;
-            currentRect = SpriteClips[KEY_PRESS_SURFACE_UP][frameTurn[countFrame%4]];
-            countFrame++;
-        }
-        else if(e.key.keysym.sym == SDLK_DOWN && Y_Position_of_Character < 430)
-        {
-            Y_Position_of_Character+= VelY;
-            currentRect = SpriteClips[KEY_PRESS_SURFACE_DOWN][frameTurn[countFrame%4]];
-            countFrame++;
-        }
-    }
+
 
 private:
     SDL_Texture* mTexture;
@@ -319,6 +300,7 @@ private:
 //rendered texture
 ///text:
 LTexture gPLayerLevel, gWildLevel;
+LTexture gLectureSpeech;
 ///image:
 LTexture gSpriteSheetTexture;
 LTexture gPlayGround;
@@ -328,6 +310,9 @@ LTexture gPokemonFighting;
 LTexture gPlayerHealthBar, gWildHealthBar;
 LTexture gMenuScreen, gMenuOptions;
 LTexture gTrainerScreen, gTrainer;
+LTexture gLectureBackground;
+LTexture gLectureProf;
+LTexture gTarget;
 bool init()
 {
     bool success = true;
@@ -394,27 +379,6 @@ bool loadMedia()
 {
     bool success = true;
 
-    if(!gSpriteSheetTexture.loadFromFile("data/movement.png"))
-    {
-        cout << "Failed to load sprite sheet texture!\n";
-        success = false;
-    }
-    else
-    {
-        //default or down
-        for(int i = 0; i < KEY_PRESS_SURFACE_TOTAL; i ++)
-        {
-
-            for(int j = 0; j < TOTAL_FRAME; j++)
-            {
-                SpriteClips[i][j].x = j*CharacterWidth;
-                SpriteClips[i][j].y = i*CharacterHeight;
-                SpriteClips[i][j].w = CharacterWidth;
-                SpriteClips[i][j].h = CharacterHeight;
-            }
-        }
-    }
-
     if(!gPokemonFighting.loadFromFile("data/Pokemon.png"))
     {
         cout << "Failed to load Pokemon.png\n";
@@ -435,17 +399,10 @@ bool loadMedia()
        }
     }
 
-    if(!gPlayGround.loadFromFile("data/Pokemon_playground.png"))
+    if(!gPlayGround.loadFromFile("data/playGround2.png"))
     {
         cout << "Failed to load sprite sheet texture!\n";
         success = false;
-    }
-    else
-    {
-        playGround.x = 0;
-        playGround.y = 0;
-        playGround.w = ScreenWidth;
-        playGround.h = ScreenHeight;
     }
 
     if(!gCombatBox.loadFromFile("data/BattleScreen.png"))
@@ -534,29 +491,74 @@ bool loadMedia()
             Trainer[i] = {i*200, 0, 200, 300};
         }
     }
+    if(!gLectureBackground.loadFromFile("data/LectureBackground.png"))
+    {
+        cout << "Failed to load LectureBackground.png" << endl;
+    }
+    else
+    {
+        LectureBackground = {0, 0, ScreenWidth, ScreenHeight};
+    }
+    if(!gLectureProf.loadFromFile("data/LectureProf.png"))
+    {
+        cout << "Failed to load LectureProf.png" << endl;
+    }
+    else
+    {
+        LectureProf = {0, 0, ScreenWidth, ScreenHeight};
+    }
+    if(!gTarget.loadFromFile("data/target.png"))
+    {
+        cout << "Failed to load target.png" << endl;
+    }
+    else
+    {
+        Target = {0, 0, 100, 100};
+    }
     return success;
 }
 
-void loadText(string s1, string s2)
+void loadCharacter(const int& TrainerOrder)
 {
-    gFont = TTF_OpenFont("ARCADECLASSIC.ttf", 38);
+    if(!gSpriteSheetTexture.loadFromFile("data/" + CharacterName[TrainerOrder] +".png"))
+    {
+        cout << "Failed to load sprite sheet texture!\n";
+    }
+    else
+    {
+        //default or down
+        for(int i = 0; i < KEY_PRESS_SURFACE_TOTAL; i ++)
+        {
+
+            for(int j = 0; j < TOTAL_FRAME; j++)
+            {
+                SpriteClips[i][j].x = j*CharacterWidth;
+                SpriteClips[i][j].y = i*CharacterHeight;
+                SpriteClips[i][j].w = CharacterWidth;
+                SpriteClips[i][j].h = CharacterHeight;
+            }
+        }
+    }
+}
+
+void loadText(LTexture& gText, string s1, int Wrap, int size)
+{
+    gFont = TTF_OpenFont("PIXELFONT.ttf", size);
     if(gFont == NULL)
     {
         cout << "Failed to load font! SDL_tff Error: " << TTF_GetError() << endl;
     }
     else
     {
-        SDL_Color textColor = {0, 0, 0};
-        if(!gPLayerLevel.loadFromRenderedText(s1, textColor))
-        {
-            cout << "Failed to render text texture" << endl;
-        }
-        else if(!gWildLevel.loadFromRenderedText(s2, textColor))
+        SDL_Color textColor = {65, 64, 63};
+        Uint32 WarpText = 10;
+        if(!gText.loadFromRenderedText(s1, textColor, Wrap))
         {
             cout << "Failed to render text texture" << endl;
         }
     }
 }
+
 
 int generateRandomNumber()
 {
@@ -599,18 +601,20 @@ int main(int argc, char* argv[])
             bool quit = false;
             bool run = false, fight = false;
             bool PlayerChoosePlay = true, PlayerChooseQuit = false, QuitGameMenu = false, QuitChooseTrainer = false;
+            bool skip = false;
             int TrainerOrder = 0;
             SDL_Event  e;
-            currentRect = SpriteClips[KEY_PRESS_SURFACE_DOWN][0];
+            SDL_Rect currentRect = SpriteClips[0][0];
             SDL_Rect currentCharacterPokemon;
+            SDL_Rect camera = {0, 0, ScreenWidth, ScreenHeight};
             SDL_Rect currentWildPokemon = {420, 90, 120, 120};
             int PlayerPokemonLevel = 5, WildPokemonLevel;
-            int countFrame = 0, Move = 0;
+            int countFrame = 0, Move = 0, countText = 0;
 
             LTimer fpsTimer;
             LTimer capTimer;
             fpsTimer.start();
-            while(!quit)
+            while(!quit && !QuitChooseTrainer)
             {
                 //Game Loop
                 capTimer.start();
@@ -710,12 +714,10 @@ int main(int argc, char* argv[])
                                 {
                                     QuitChooseTrainer = true;
                                     gTrainer.render(241, 141, &Trainer[TrainerOrder]);
-                                    cout << TrainerOrder << endl;
                                 }
                             }
                         }
                     }
-                    cout << TrainerOrder << endl;
                     gTrainer.render(240, 140, &Trainer[TrainerOrder]);
                     SDL_RenderPresent(gRenderer);
                     if(QuitChooseTrainer) SDL_Delay(500);
@@ -727,10 +729,121 @@ int main(int argc, char* argv[])
                         gTrainerScreen.render(0, 0, &TrainerScreen);
                     }
                 }
+            }
+
+            int IndexOfTarget = 0;
+            cout << sizeof(LectureSpeech);
+            while(!quit && !skip)
+            {
+                capTimer.start();
+                SDL_RenderClear(gRenderer);
+                gLectureBackground.render(0, 0, &LectureBackground);
+                gLectureProf.render(0, 0, &LectureProf);
+                gLectureSpeech.render(100, 400);
+                if(countText == 1) loadText(gLectureSpeech, LectureSpeech[countText] + CharacterName[TrainerOrder] + "!", 1000, 38);
+                else if(countText == 7)
+                {
+                    gPokemonFighting.render(50, 50, &pokemonFighting[0][0]);
+                    gPokemonFighting.render(100, 150, &pokemonFighting[1][0]);
+                    gPokemonFighting.render(150, 50, &pokemonFighting[2][0]);
+
+                    while(SDL_PollEvent(&e) != 0)
+                    {
+                        if(e.type == SDL_QUIT)
+                        {
+                            quit = true;
+                        }
+                        else if(e.type == SDL_KEYDOWN && e.key.repeat == 0)
+                        {
+                            switch(e.key.keysym.sym)
+                            {
+                                case SDLK_UP:
+                                {
+                                    IndexOfTarget = 0;
+                                    break;
+                                }
+                                case SDLK_DOWN:
+                                {
+                                    IndexOfTarget = 1;
+                                    break;
+                                }
+                                case SDLK_RIGHT:
+                                {
+                                    if(IndexOfTarget != 0) IndexOfTarget = 0;
+                                    else IndexOfTarget = 2;
+                                    break;
+                                }
+                                case SDLK_LEFT:
+                                {
+                                    if(IndexOfTarget != 0) IndexOfTarget = 0;
+                                    else IndexOfTarget = 2;
+                                    break;
+                                }
+                                case SDLK_SPACE:
+                                {
+                                    countText++;
+                                    break;
+                                }
+                            }
+
+                        }
+                    }
+                    gTarget.render(Position_of_Target[IndexOfTarget][0], Position_of_Target[IndexOfTarget][1], &Target);
+                }
+                else if(countText == 8)
+                {
+                    loadText(gLectureSpeech, LectureSpeech[countText] + PokemonName[IndexOfTarget], 1000, 38);
+                }
+                else if(countText > 10)
+                {
+                    skip = true;
+                }
+                else loadText(gLectureSpeech, LectureSpeech[countText], 1000, 38);
+                SDL_RenderPresent(gRenderer);
+
+                //BackgroundAnimation
+                LectureBackground.x += 10;
+                if(LectureBackground.x + 10 > (800 - ScreenWidth)) LectureBackground.x = 0;
 
                 while(SDL_PollEvent(&e) != 0)
                 {
+                    if(e.type == SDL_QUIT)
+                    {
+                        quit = true;
+                    }
+                    else if(e.type == SDL_KEYDOWN && e.key.repeat == 0)
+                    {
+                        switch (e.key.keysym.sym)
+                        {
+                        case SDLK_SPACE:
+                            countText++;
+                            break;
+                        case SDLK_e:
+                            skip = true;
+                            break;
+                        }
+                    }
+                }
+
+                countFrame++;
+                int frameTicks = capTimer.getTicks();
+                if(frameTicks < ScreenTickPerFrame)
+                {
+                    SDL_Delay(ScreenTickPerFrame - frameTicks);
+                }
+            }
+            loadCharacter(TrainerOrder);
+            currentRect = SpriteClips[0][0];
+
+            while(!quit)
+            {
+                capTimer.start();
+                while(SDL_PollEvent(&e) != 0)
+                {
                     ///Loop for loading playground and character position
+                    SDL_RenderClear(gRenderer);
+                    gPlayGround.render(0, 0, &camera);
+                    //loadText("NGu\nNgoc", "NGao ngo a`", 1000, 10);
                     if(e.type == SDL_QUIT)
                     {
                         quit = true;
@@ -740,16 +853,74 @@ int main(int argc, char* argv[])
                         run = false;
                         WildHealthBar.w = HealthBarWidth;
                         PlayerHealthBar.w = HealthBarWidth;
-                        gSpriteSheetTexture.moveTexture(e, Move);
+
+                        switch(e.key.keysym.sym)
+                        {
+                            case SDLK_RIGHT:
+                            {
+                                if(X_Position_of_Character <= (ScreenWidth/2) - CharacterWidth || camera.x + VelX > ScreenWidth)
+                                {
+                                    X_Position_of_Character += VelX;
+                                }
+                                else
+                                {
+                                    camera.x += VelX;
+                                }
+
+                                currentRect = SpriteClips[KEY_PRESS_SURFACE_RIGHT][frameTurn[Move%4]];
+                                Move++;
+                                break;
+                            }
+                            case SDLK_LEFT:
+                            {
+                                if(X_Position_of_Character >= (ScreenWidth/2) - CharacterWidth || camera.x - VelX < 0)
+                                {
+                                    X_Position_of_Character -= VelX;
+                                }
+                                else
+                                {
+                                    camera.x -= VelX;
+                                }
+                                currentRect = SpriteClips[KEY_PRESS_SURFACE_LEFT][frameTurn[Move%4]];
+                                Move++;
+                                break;
+                            }
+                            case SDLK_UP:
+                            {
+                                if(Y_Position_of_Character >= (ScreenHeight/2) - CharacterHeight || camera.y - VelY < 0)
+                                {
+                                    Y_Position_of_Character -= VelY;
+                                }
+                                else
+                                {
+                                    camera.y -= VelY;
+                                }
+                                currentRect = SpriteClips[KEY_PRESS_SURFACE_UP][frameTurn[Move%4]];
+                                Move++;
+                                break;
+                            }
+                            case SDLK_DOWN:
+                            {
+                                if(Y_Position_of_Character <= (ScreenHeight/2) - CharacterHeight || camera.y + VelY > ScreenHeight)
+                                {
+                                    Y_Position_of_Character += VelY;
+                                }
+                                else
+                                {
+                                    camera.y += VelY;
+                                }
+                                currentRect = SpriteClips[KEY_PRESS_SURFACE_DOWN][frameTurn[Move%4]];
+                                Move++;
+                                break;
+                            }
+                        }
                     }
                 }
 
                 float avgFPS = countFrame/ (fpsTimer.getTicks() /1000.f);
                 if(avgFPS > 2000000) avgFPS = 0;
 
-                SDL_RenderClear(gRenderer);
 
-                gPlayGround.render(0, 0, &playGround);
                 gSpriteSheetTexture.render(X_Position_of_Character, Y_Position_of_Character, &currentRect);
 
                 while(Y_Position_of_Character >= 280 && encouterRateBoard[generateRandomNumber()%10] && !run)
@@ -796,8 +967,8 @@ int main(int argc, char* argv[])
                                         break;
                                     }
                                     default:
-                                        X_Position_of_Poiter = Position_of_Pointer[0][0];
                                     {
+                                        X_Position_of_Poiter = Position_of_Pointer[0][0];
                                         Y_Position_of_Pointer = Position_of_Pointer[0][1];
                                     }
                                 }
@@ -808,12 +979,12 @@ int main(int argc, char* argv[])
                         {
 
                             currentWildPokemon = pokemonFighting[3][FrontOfPokemon];
-                            currentCharacterPokemon = pokemonFighting[4][BackOfPokemon];
+                            currentCharacterPokemon = pokemonFighting[IndexOfTarget][BackOfPokemon];
                             gPokemonFighting.render(430, 100, &currentWildPokemon);
                             gPokemonFighting.render(90, 240, &currentCharacterPokemon);
                             gWildHealthBar.render(143, 90, &WildHealthBar);
                             gPlayerHealthBar.render(477, 300, &PlayerHealthBar);
-                            loadText("Lv " + to_string(PlayerPokemonLevel), "Lv " + to_string(WildPokemonLevel));
+                            //loadText("Lv " + to_string(PlayerPokemonLevel), "Lv \n" + to_string(WildPokemonLevel), 1, 1);
                             gPLayerLevel.render(605, 258);
                             gWildLevel.render(270, 48);
                             SDL_RenderPresent(gRenderer);
@@ -843,7 +1014,6 @@ int main(int argc, char* argv[])
                     if(run || quit) break;
                 }
 
-
                 SDL_RenderPresent(gRenderer);
                 countFrame++;
                 int frameTicks = capTimer.getTicks();
@@ -852,9 +1022,10 @@ int main(int argc, char* argv[])
                     SDL_Delay(ScreenTickPerFrame - frameTicks);
                 }
             }
-        }
-    }
 
+        }
+
+    }
     close();
 
     return 0;
