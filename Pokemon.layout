@@ -1,23 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<FileVersion major="1" minor="0" />
-	<ActiveTarget name="Debug" />
-	<File name="SDL.cpp" open="1" top="1" tabpos="1" split="0" active="1" splitpos="0" zoom_1="-2" zoom_2="0">
+	<ActiveTarget name="Release" />
+	<File name="SDL.cpp" open="1" top="1" tabpos="1" split="0" active="1" splitpos="0" zoom_1="-1" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="30118" topLine="448" />
+			<Cursor1 position="25118" topLine="762" />
 		</Cursor>
 		<Folding>
-			<Collapse line="68" />
-			<Collapse line="172" />
-			<Collapse line="316" />
-			<Collapse line="521" />
-			<Collapse line="563" />
-			<Collapse line="569" />
-			<Collapse line="595" />
-			<Collapse line="621" />
-			<Collapse line="683" />
-			<Collapse line="726" />
-			<Collapse line="926" />
+			<Collapse line="207" />
 		</Folding>
 	</File>
 </CodeBlocks_layout_file>

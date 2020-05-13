@@ -1,6 +1,7 @@
 #include<SDL.h>
 #include<SDL_image.h>
 #include <SDL_ttf.h>
+#include<SDL_mixer.h>
 #include<bits/stdc++.h>
 using namespace std;
 
@@ -8,14 +9,20 @@ const int ScreenWidth = 640, ScreenHeight = 480;
 const int ScreenFPS = 60, ScreenTickPerFrame = 8000/ScreenFPS;
 const int VelX = 5, VelY = 5;
 const int CharacterWidth = 40, CharacterHeight = 60;
-const int  frameTurn[4] = {0, 1, 0 ,2};
-const bool encouterRateBoard[] = {1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+const int NumberOfNPCs = 3;
+const int  frameTurn[4] = {0, 1, 0 ,2}, TOTAL_FRAME = 3;
 const string CharacterName[] = {"Ethan", "Lyra", "Silver", "Whitney", "Blue", "Karen"};
-const string PokemonName[] = {"Bulbasaur", "Charmander", "Squirtle"};
+const string PokemonName[] = {"Bulbasaur", "Charmander", "Squirtle","Pidgey", "Rattata"};
 const string LectureSpeech[] = {"Press SPACE to continue or press E to\nskip instruction.","Hello ", "My name is Professor Oak\nWelcome to the Pokemon World!!", "Before head into Pokemon world,\nlet me show you something", "As being a trainer, your ambition is\nbeing one of the best Pokemon trainer.", "To do that, you have to defeat or catch\nPokemon as much as you can.", "But, you need a Pokemon first.", "Now choose your Pokemon.", "You choose a ","And remember, if you need help,\nyou can meet me the right of the map." ,"Okay, now if you are ready press SPACE\nto enter the Pokemon world. Good luck!"};
+const string ProfSpeech[] = {"Hi, I am Professor Elm!", "You are new here."};
+const string NurseSpeech[] = {"Your Pokemon is fully healed"};
+const string SellerSpeech[] = {"You don't have enough money", "You got 10 pokeballs for 100$"};
+const string PokemonEncounterText[] = {"You encountered a wild\n", "You've run away", "Your Pokemon used Tackle", "Your Pokemon wins", "Your Pokemon Loses", "You caught a wild\n", "Missed", "You are out of Ball"};
 int X_Position_of_Character = (ScreenWidth/2) - CharacterWidth, Y_Position_of_Character = (ScreenHeight/2) - CharacterHeight;
-int Position_of_Pointer[2][2] = {{375, 382}, {400, 382}};
+int Position_of_Pointer[3][2] = {{345, 375}, {485, 375}, {345, 420}};
 int Position_of_Target[3][2] = {{40, 80}, {90, 175}, {140, 80}};
+int Position_of_NPC[NumberOfNPCs][2] = {{100, 100}, {640, 480}, {1050, 100}};
+bool meetPro = false, meetNurse = false, meetSeller = false;
 int X_Position_of_Poiter = Position_of_Pointer[0][0], Y_Position_of_Pointer = Position_of_Pointer[0][1];
 const int Direction = 2, TOTAL_POKEMON = 5, FrontOfPokemon = 0, BackOfPokemon = 1;
 int HealthBarWidth = 144;
@@ -27,14 +34,23 @@ enum KeyPressesSurFaces
 	KEY_PRESS_SURFACE_UP,//3
 	KEY_PRESS_SURFACE_TOTAL//4
 };
-enum FrameCount
+enum FightingText
 {
-    FISRT_FRAME,//0
-    SECOND_FRAME,//1
-    THIRD_FRAME,//2
-    TOTAL_FRAME//3
+    FIRST_ENCOUNTER_TEXT,//0
+    WAIT_FOR_PLAYERMOVE,//1
+    PLAYER_CHOOSE_FIGHT,//2
+    PLAYER_WIN, //3
+    PLAYER_LOSE, //4
+    PLAYER_CAUGHT, //5
+    PLAYER_MISSED, //6
+    PLAYER_OUT_OF_BALL//7
 };
-
+enum NPCs
+{
+    ProfessorElm,
+    Nurse,
+    Seller,
+};
 bool init();
 bool loadMedia();
 void close();
@@ -51,18 +67,37 @@ SDL_Renderer* gRenderer = NULL;
 //Rendered texture
 TTF_Font* gFont = NULL;
 
+//The music that will be played
+Mix_Music *gMenuMusic= NULL;
+Mix_Music *gLectureMusic = NULL;
+Mix_Music *gIngameMusic = NULL;
+Mix_Chunk *gBattleMusic = NULL;
+//The sound effects that will be used
+Mix_Chunk *gMenuEffect = NULL;
+Mix_Chunk *gMenuChooseEffect = NULL;
+Mix_Chunk *gFootStepEffect = NULL;
+Mix_Chunk *gFootStepBushEffect = NULL;
+
 SDL_Rect MenuScreen, MenuOptions[2][2];
+SDL_Rect PokemonBanner;
 SDL_Rect TrainerScreen, Trainer[6];
 SDL_Rect SpriteClips[KEY_PRESS_SURFACE_TOTAL][TOTAL_FRAME];
+SDL_Rect NPC[KEY_PRESS_SURFACE_TOTAL][3];
 SDL_Rect pokemonFighting[TOTAL_POKEMON][Direction];
+SDL_Rect ScoreBoard;
 SDL_Rect LectureBackground;
 SDL_Rect LectureProf;
 SDL_Rect Target;
 SDL_Rect playGround;
-
+SDL_Rect TextBox;
 SDL_Rect combatBox;
 SDL_Rect Pointer;
 SDL_Rect PlayerHealthBar, WildHealthBar;
+
+//color
+SDL_Color GrayTextColor = {65, 64, 63};
+SDL_Color ShadowTextColor = {215, 214, 213};
+SDL_Color WhiteTextColor = {255, 255, 255};
 
 
 class LTimer
@@ -300,10 +335,15 @@ private:
 //rendered texture
 ///text:
 LTexture gPLayerLevel, gWildLevel;
+LTexture gPLayerScore, gPLayerPokeball;
 LTexture gLectureSpeech;
+LTexture gNPCsSpeech;
+LTexture gFightingSpeech;
 ///image:
 LTexture gSpriteSheetTexture;
+LTexture gNPC;
 LTexture gPlayGround;
+LTexture gScoreBoard;
 LTexture gCombatBox;
 LTexture gPointer;
 LTexture gPokemonFighting;
@@ -313,6 +353,8 @@ LTexture gTrainerScreen, gTrainer;
 LTexture gLectureBackground;
 LTexture gLectureProf;
 LTexture gTarget;
+LTexture gPokemonBanner;
+LTexture gTextBox;
 bool init()
 {
     bool success = true;
@@ -367,6 +409,12 @@ bool init()
                     cout << "SDL_ttf could not initialize! SDL_ttf Error: " << TTF_GetError();
                     success = false;
                 }
+                //Initialize SDL_mixer
+                if(Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0)
+                {
+                    cout << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << endl;
+                    success = false;
+                }
             }
 
         }
@@ -398,13 +446,38 @@ bool loadMedia()
            }
        }
     }
-
+    if(!gNPC.loadFromFile("data/NPC.png"))
+    {
+        cout << "Failed to load NPC.png!\n";
+        success = false;
+    }
+    else
+    {
+        for(int i = 0; i < KEY_PRESS_SURFACE_TOTAL; i++)
+        {
+            for(int j = 0; j < NumberOfNPCs; j++)
+            {
+                NPC[i][j].x = j*40;
+                NPC[i][j].y = i*60;
+                NPC[i][j].w = CharacterWidth;
+                NPC[i][j].h = CharacterHeight;
+            }
+        }
+    }
     if(!gPlayGround.loadFromFile("data/playGround2.png"))
     {
         cout << "Failed to load sprite sheet texture!\n";
         success = false;
     }
-
+    if(!gScoreBoard.loadFromFile("data/ScoreBoard.png"))
+    {
+        cout << "Failed to load ScoreBoard!\n";
+        success = false;
+    }
+    else
+    {
+        ScoreBoard = {0, 0, 120, 50};
+    }
     if(!gCombatBox.loadFromFile("data/BattleScreen.png"))
     {
         cout << "Failed to load title\n";
@@ -456,7 +529,15 @@ bool loadMedia()
     {
         MenuScreen = {0, 0, ScreenWidth, ScreenHeight};
     }
-
+    if(!gPokemonBanner.loadFromFile("data/PokemonBanner.png"))
+    {
+        cout << "Failed to load PokemonBanner.png" << endl;
+        success = false;
+    }
+    else
+    {
+        PokemonBanner = {0, 0, 480, 180};
+    }
     if(!gMenuOptions.loadFromFile("data/MenuOptions.png"))
     {
         cout << "Failed to load MenuOptions.png" << endl;
@@ -515,6 +596,60 @@ bool loadMedia()
     {
         Target = {0, 0, 100, 100};
     }
+    if(!gTextBox.loadFromFile("data/textBox.png"))
+    {
+        cout << "Failed to load TextBox.png\n";
+    }
+    else
+    {
+        TextBox = {0, 0, 540, 90};
+    }
+    //Load music
+    //Mix_Music *gMenuMusic= NULL;
+    //Mix_Music *gLectureMusic = NULL;
+    //Mix_Music *gIngameMusic = NULL;
+    gMenuMusic = Mix_LoadMUS("Sound/MainMenuMusic.mp3");
+    if(gMenuMusic == NULL)
+    {
+        cout << "Failed to load beat music! SDL_mixer Error: " << Mix_GetError() << endl;
+        success = false;
+    }
+    gLectureMusic = Mix_LoadMUS("Sound/LectureMusic.mp3");
+    if(gLectureMusic == NULL)
+    {
+        cout << "Failed to load Lecture Music! SDL_Mixer Error: " << Mix_GetError() << endl;
+    }
+    gIngameMusic = Mix_LoadMUS("Sound/InGameMusic.mp3");
+    if(gIngameMusic == NULL)
+    {
+        cout << "Failed to load In Game music! SDL_Mixer Error: " << Mix_GetError() << endl;
+    }
+    gBattleMusic = Mix_LoadWAV("Sound/BattleMusic.mp3");
+    if(gBattleMusic == NULL)
+    {
+        cout << "Failed to load Battle Music! SDL_mixer error: " << Mix_GetError() << endl;
+    }
+    //Load sound effects
+    gMenuEffect = Mix_LoadWAV("Sound/SFX Menu.wav");
+    if(gMenuEffect == NULL)
+    {
+        cout << "Failed to load Menu SFX! SDL_mixer error: " << Mix_GetError() << endl;
+    }
+    gMenuChooseEffect = Mix_LoadWAV("Sound/SFX Choose.wav");
+    if(gMenuChooseEffect == NULL)
+    {
+        cout << "Failed to load Menu Choose SFX! SDL_mixer error: " << Mix_GetError() << endl;
+    }
+    gFootStepEffect = Mix_LoadWAV("Sound/SFX FootStep.mp3");
+    if(gFootStepEffect == NULL)
+    {
+        cout << "Failed to load FootStep SFX! SDL_mixer error: " << Mix_GetError() << endl;
+    }
+    gFootStepBushEffect = Mix_LoadWAV("Sound/SFX FootStepBush.mp3");
+    if(gFootStepBushEffect == NULL)
+    {
+        cout << "Failed to load FootStepBush SFX! SDL_mixer error: " << Mix_GetError() << endl;
+    }
     return success;
 }
 
@@ -541,7 +676,7 @@ void loadCharacter(const int& TrainerOrder)
     }
 }
 
-void loadText(LTexture& gText, string s1, int Wrap, int size)
+void loadText(LTexture& gText, const string s1, const int size, const SDL_Color &textColor)
 {
     gFont = TTF_OpenFont("PIXELFONT.ttf", size);
     if(gFont == NULL)
@@ -550,13 +685,121 @@ void loadText(LTexture& gText, string s1, int Wrap, int size)
     }
     else
     {
-        SDL_Color textColor = {65, 64, 63};
-        Uint32 WarpText = 10;
-        if(!gText.loadFromRenderedText(s1, textColor, Wrap))
+        if(!gText.loadFromRenderedText(s1, textColor, 1000))
         {
             cout << "Failed to render text texture" << endl;
         }
     }
+}
+
+bool checkNPCsColision(SDL_Event& e)
+{
+    bool collised = false;
+
+    switch(e.key.keysym.sym)
+    {
+    case SDLK_RIGHT:
+        {
+           if(X_Position_of_Character + CharacterWidth == Position_of_NPC[ProfessorElm][0] && Y_Position_of_Character >= (Position_of_NPC[ProfessorElm][1] - CharacterHeight) && Y_Position_of_Character <= (Position_of_NPC[ProfessorElm][1] + CharacterHeight))
+           {
+               meetPro = true;
+               collised = true;
+           }
+           else if(X_Position_of_Character + CharacterWidth == Position_of_NPC[Nurse][0] && Y_Position_of_Character >= (Position_of_NPC[Nurse][1] - CharacterHeight) && Y_Position_of_Character <= (Position_of_NPC[Nurse][1] + CharacterHeight))
+           {
+               meetNurse = true;
+               collised = true;
+           }
+           else if(X_Position_of_Character + CharacterWidth == Position_of_NPC[Seller][0] && Y_Position_of_Character >= (Position_of_NPC[Seller][1] - CharacterHeight) && Y_Position_of_Character <= (Position_of_NPC[Seller][1] + CharacterHeight))
+           {
+               meetSeller = true;
+               collised = true;
+           }
+           else
+           {
+               meetPro = false;
+               meetNurse = false;
+               meetSeller = false;
+           }
+            return collised;
+        }
+    case SDLK_LEFT:
+        {
+            if(X_Position_of_Character - CharacterWidth == Position_of_NPC[ProfessorElm][0] && Y_Position_of_Character >= (Position_of_NPC[ProfessorElm][1] - CharacterHeight) && Y_Position_of_Character <= (Position_of_NPC[ProfessorElm][1] + CharacterHeight))
+            {
+                meetPro = true;
+                collised = true;
+            }
+            else if(X_Position_of_Character - CharacterWidth == Position_of_NPC[Nurse][0] && Y_Position_of_Character >= (Position_of_NPC[Nurse][1] - CharacterHeight) && Y_Position_of_Character <= (Position_of_NPC[Nurse][1] + CharacterHeight))
+            {
+                meetNurse = true;
+                collised = true;
+            }
+            else if(X_Position_of_Character - CharacterWidth == Position_of_NPC[Seller][0] && Y_Position_of_Character >= (Position_of_NPC[Seller][1] - CharacterHeight) && Y_Position_of_Character <= (Position_of_NPC[Seller][1] + CharacterHeight))
+            {
+                meetSeller = true;
+                collised = true;
+            }
+            else
+            {
+                meetPro = false;
+                meetNurse = false;
+                meetSeller = false;
+            }
+            return collised;
+        }
+    case SDLK_UP:
+        {
+            if(Y_Position_of_Character - CharacterHeight == Position_of_NPC[ProfessorElm][1] && X_Position_of_Character >= (Position_of_NPC[ProfessorElm][0] - CharacterWidth) && X_Position_of_Character <= (Position_of_NPC[ProfessorElm][0] + CharacterWidth))
+            {
+                meetPro = true;
+                collised = true;
+            }
+            else if(Y_Position_of_Character - CharacterHeight == Position_of_NPC[Nurse][1] && X_Position_of_Character >= (Position_of_NPC[Nurse][0] - CharacterWidth) && X_Position_of_Character <= (Position_of_NPC[Nurse][0] + CharacterWidth))
+            {
+                meetNurse = true;
+                collised = true;
+            }
+            else if(Y_Position_of_Character - CharacterHeight == Position_of_NPC[Seller][1] && X_Position_of_Character >= (Position_of_NPC[Seller][0] - CharacterWidth) && X_Position_of_Character <= (Position_of_NPC[Seller][0] + CharacterWidth))
+            {
+                meetSeller = true;
+                collised = true;
+            }
+            else
+            {
+                meetPro = false;
+                meetNurse = false;
+                meetSeller = false;
+            }
+            return collised;
+        }
+    case SDLK_DOWN:
+        {
+            if(Y_Position_of_Character + CharacterHeight == Position_of_NPC[ProfessorElm][1] && X_Position_of_Character >= (Position_of_NPC[ProfessorElm][0] - CharacterWidth) && X_Position_of_Character <= (Position_of_NPC[ProfessorElm][0] + CharacterWidth))
+           {
+               meetPro = true;
+               collised = true;
+           }
+            else if(Y_Position_of_Character + CharacterHeight == Position_of_NPC[Nurse][1] && X_Position_of_Character >= (Position_of_NPC[Nurse][0] - CharacterWidth) && X_Position_of_Character <= (Position_of_NPC[Nurse][0] + CharacterWidth))
+            {
+                meetNurse = true;
+                collised = true;
+            }
+            else if(Y_Position_of_Character + CharacterHeight == Position_of_NPC[Seller][1] && X_Position_of_Character >= (Position_of_NPC[Seller][0] - CharacterWidth) && X_Position_of_Character <= (Position_of_NPC[Seller][0] + CharacterWidth))
+            {
+                meetSeller = true;
+                collised = true;
+            }
+            else
+            {
+                meetPro = false;
+                meetNurse = false;
+                meetSeller = false;
+            }
+        }
+        return collised;
+    }
+
 }
 
 
@@ -598,19 +841,22 @@ int main(int argc, char* argv[])
         }
         else
         {
-            bool quit = false;
-            bool run = false, fight = false;
+            bool quit = false, zoom = false;
+            bool run = false, fight = false, pressCatch = false;
             bool PlayerChoosePlay = true, PlayerChooseQuit = false, QuitGameMenu = false, QuitChooseTrainer = false;
             bool skip = false;
             int TrainerOrder = 0;
+            int NPCDirection = KEY_PRESS_SURFACE_DOWN;
+            bool encouterNPC = false, interactNPC = false;
             SDL_Event  e;
             SDL_Rect currentRect = SpriteClips[0][0];
             SDL_Rect currentCharacterPokemon;
             SDL_Rect camera = {0, 0, ScreenWidth, ScreenHeight};
             SDL_Rect currentWildPokemon = {420, 90, 120, 120};
+            int PlayerScore = 0, PlayerPokemonBall = 10;
             int PlayerPokemonLevel = 5, WildPokemonLevel;
             int countFrame = 0, Move = 0, countText = 0;
-
+            int IndexOfTarget = 0;
             LTimer fpsTimer;
             LTimer capTimer;
             fpsTimer.start();
@@ -618,12 +864,34 @@ int main(int argc, char* argv[])
             {
                 //Game Loop
                 capTimer.start();
+                Mix_PlayMusic( gMenuMusic, -1 );
                 while(!quit && !QuitGameMenu)
                 {
                     ///Loop for loading menu start game
                     capTimer.start();
+
                     SDL_RenderClear(gRenderer);
                     gMenuScreen.render(0, 0, &MenuScreen);
+                    gPokemonBanner.render(70, 0, &PokemonBanner);
+                    //animation
+                    if(MenuScreen.x == 20 && MenuScreen.y == 20)
+                    {
+                        zoom = true;
+                    }
+                    else if(MenuScreen.x == 0 && MenuScreen.y ==0)
+                    {
+                        zoom = false;
+                    }
+                    if(!zoom)
+                    {
+                        MenuScreen.x += 1;
+                        MenuScreen.y += 1;
+                    }
+                    else
+                    {
+                        MenuScreen.x -= 1;
+                        MenuScreen.y -= 1;
+                    }
 
                     while(SDL_PollEvent(&e) != 0)
                     {
@@ -639,20 +907,24 @@ int main(int argc, char* argv[])
                                 {
                                     PlayerChoosePlay = !PlayerChoosePlay;
                                     PlayerChooseQuit = !PlayerChooseQuit;
+                                    Mix_PlayChannel(-1, gMenuEffect, 0);
                                     break;
                                 }
                                 case SDLK_LEFT:
                                 {
                                     PlayerChoosePlay = !PlayerChoosePlay;
                                     PlayerChooseQuit = !PlayerChooseQuit;
+                                    Mix_PlayChannel(-1, gMenuEffect, 0);
                                     break;
                                 }
                                 case SDLK_SPACE:
                                 {
                                     if(PlayerChooseQuit) quit = true;
                                     else QuitGameMenu = true;
+                                    Mix_PlayChannel(-1, gMenuChooseEffect, 0);
                                     break;
                                 }
+
                                 default:
                                 {
                                     quit = false;
@@ -670,15 +942,26 @@ int main(int argc, char* argv[])
                     if(frameTicks < ScreenTickPerFrame)
                     {
                         SDL_Delay(ScreenTickPerFrame - frameTicks);
-                        gTrainerScreen.render(0, 0, &TrainerScreen);
                     }
                 }
+
 
                 while(!quit && !QuitChooseTrainer)
                 {
                     capTimer.start();
                     SDL_RenderClear(gRenderer);
                     gTrainerScreen.render(0, 0, &TrainerScreen);
+                    //animation
+                    if(TrainerScreen.h == ScreenHeight + 10)
+                    {
+                        zoom = false;
+                    }
+                    else if(TrainerScreen.h == ScreenHeight)
+                    {
+                        zoom = true;
+                    }
+                    if(zoom) TrainerScreen.h += 1;
+                    else TrainerScreen.h -= 1;
 
                     while(SDL_PollEvent(&e) != 0)
                     {
@@ -698,6 +981,7 @@ int main(int argc, char* argv[])
                                         break;
                                     }
                                     else TrainerOrder ++;
+                                    Mix_PlayChannel(-1, gMenuEffect, 0);
                                     break;
                                 }
                             case SDLK_LEFT:
@@ -708,12 +992,14 @@ int main(int argc, char* argv[])
                                         break;
                                     }
                                     else TrainerOrder --;
+                                    Mix_PlayChannel(-1, gMenuEffect, 0);
                                     break;
                                 }
                             case SDLK_SPACE:
                                 {
                                     QuitChooseTrainer = true;
                                     gTrainer.render(241, 141, &Trainer[TrainerOrder]);
+                                    Mix_PlayChannel(-1, gMenuChooseEffect, 0);
                                 }
                             }
                         }
@@ -726,13 +1012,12 @@ int main(int argc, char* argv[])
                     if(frameTicks < ScreenTickPerFrame)
                     {
                         SDL_Delay(ScreenTickPerFrame - frameTicks);
-                        gTrainerScreen.render(0, 0, &TrainerScreen);
                     }
                 }
             }
 
-            int IndexOfTarget = 0;
-            cout << sizeof(LectureSpeech);
+            Mix_HaltMusic();
+            Mix_PlayMusic(gLectureMusic, -1);
             while(!quit && !skip)
             {
                 capTimer.start();
@@ -740,7 +1025,7 @@ int main(int argc, char* argv[])
                 gLectureBackground.render(0, 0, &LectureBackground);
                 gLectureProf.render(0, 0, &LectureProf);
                 gLectureSpeech.render(100, 400);
-                if(countText == 1) loadText(gLectureSpeech, LectureSpeech[countText] + CharacterName[TrainerOrder] + "!", 1000, 38);
+                if(countText == 1) loadText(gLectureSpeech, LectureSpeech[countText] + CharacterName[TrainerOrder] + "!", 38, GrayTextColor);
                 else if(countText == 7)
                 {
                     gPokemonFighting.render(50, 50, &pokemonFighting[0][0]);
@@ -760,28 +1045,33 @@ int main(int argc, char* argv[])
                                 case SDLK_UP:
                                 {
                                     IndexOfTarget = 0;
+                                    Mix_PlayChannel(-1, gMenuEffect, 0);
                                     break;
                                 }
                                 case SDLK_DOWN:
                                 {
                                     IndexOfTarget = 1;
+                                    Mix_PlayChannel(-1, gMenuEffect, 0);
                                     break;
                                 }
                                 case SDLK_RIGHT:
                                 {
                                     if(IndexOfTarget != 0) IndexOfTarget = 0;
                                     else IndexOfTarget = 2;
+                                    Mix_PlayChannel(-1, gMenuEffect, 0);
                                     break;
                                 }
                                 case SDLK_LEFT:
                                 {
                                     if(IndexOfTarget != 0) IndexOfTarget = 0;
                                     else IndexOfTarget = 2;
+                                    Mix_PlayChannel(-1, gMenuEffect, 0);
                                     break;
                                 }
                                 case SDLK_SPACE:
                                 {
                                     countText++;
+                                    Mix_PlayChannel(-1, gMenuChooseEffect, 0);
                                     break;
                                 }
                             }
@@ -792,13 +1082,13 @@ int main(int argc, char* argv[])
                 }
                 else if(countText == 8)
                 {
-                    loadText(gLectureSpeech, LectureSpeech[countText] + PokemonName[IndexOfTarget], 1000, 38);
+                    loadText(gLectureSpeech, LectureSpeech[countText] + PokemonName[IndexOfTarget], 38, GrayTextColor);
                 }
-                else if(countText > 10)
+                else if(countText >= 10)
                 {
                     skip = true;
                 }
-                else loadText(gLectureSpeech, LectureSpeech[countText], 1000, 38);
+                else loadText(gLectureSpeech, LectureSpeech[countText], 38, GrayTextColor);
                 SDL_RenderPresent(gRenderer);
 
                 //BackgroundAnimation
@@ -817,9 +1107,11 @@ int main(int argc, char* argv[])
                         {
                         case SDLK_SPACE:
                             countText++;
+                            Mix_PlayChannel(-1, gMenuChooseEffect, 0);
                             break;
                         case SDLK_e:
                             skip = true;
+                            Mix_PlayChannel(-1, gMenuChooseEffect, 0);
                             break;
                         }
                     }
@@ -832,18 +1124,21 @@ int main(int argc, char* argv[])
                     SDL_Delay(ScreenTickPerFrame - frameTicks);
                 }
             }
+            Mix_HaltMusic();
+            Mix_PlayMusic(gIngameMusic, -1);
             loadCharacter(TrainerOrder);
             currentRect = SpriteClips[0][0];
-
+            SDL_RenderClear(gRenderer);
             while(!quit)
             {
                 capTimer.start();
+                SDL_RenderClear(gRenderer);
+                gPlayGround.render(0, 0, &camera);
+
                 while(SDL_PollEvent(&e) != 0)
                 {
                     ///Loop for loading playground and character position
-                    SDL_RenderClear(gRenderer);
-                    gPlayGround.render(0, 0, &camera);
-                    //loadText("NGu\nNgoc", "NGao ngo a`", 1000, 10);
+
                     if(e.type == SDL_QUIT)
                     {
                         quit = true;
@@ -858,6 +1153,17 @@ int main(int argc, char* argv[])
                         {
                             case SDLK_RIGHT:
                             {
+                                currentRect = SpriteClips[KEY_PRESS_SURFACE_RIGHT][frameTurn[Move%4]];
+                                Move++;
+                                //check encounter NPC:
+                                if(checkNPCsColision(e))
+                                {
+                                    NPCDirection = KEY_PRESS_SURFACE_LEFT;
+                                    Move = 0;
+                                    encouterNPC = true;
+                                    break;
+                                }
+
                                 if(X_Position_of_Character <= (ScreenWidth/2) - CharacterWidth || camera.x + VelX > ScreenWidth)
                                 {
                                     X_Position_of_Character += VelX;
@@ -865,14 +1171,28 @@ int main(int argc, char* argv[])
                                 else
                                 {
                                     camera.x += VelX;
+                                    Position_of_NPC[0][0] -= VelX;
+                                    Position_of_NPC[1][0] -= VelX;
+                                    Position_of_NPC[2][0] -= VelX;
                                 }
+                                interactNPC = false;
 
-                                currentRect = SpriteClips[KEY_PRESS_SURFACE_RIGHT][frameTurn[Move%4]];
-                                Move++;
+                                if(camera.y >= 320) Mix_PlayChannel(-1, gFootStepBushEffect, 0);
+                                else Mix_PlayChannel(-1, gFootStepEffect, 0);
+
                                 break;
                             }
                             case SDLK_LEFT:
                             {
+                                currentRect = SpriteClips[KEY_PRESS_SURFACE_LEFT][frameTurn[Move%4]];
+                                Move++;
+                                if(checkNPCsColision(e))
+                                {
+                                    NPCDirection = KEY_PRESS_SURFACE_RIGHT;
+                                    Move = 0;
+                                    encouterNPC = true;
+                                    break;
+                                }
                                 if(X_Position_of_Character >= (ScreenWidth/2) - CharacterWidth || camera.x - VelX < 0)
                                 {
                                     X_Position_of_Character -= VelX;
@@ -880,13 +1200,28 @@ int main(int argc, char* argv[])
                                 else
                                 {
                                     camera.x -= VelX;
+                                    Position_of_NPC[0][0] += VelX;
+                                    Position_of_NPC[1][0] += VelX;
+                                    Position_of_NPC[2][0] += VelX;
                                 }
-                                currentRect = SpriteClips[KEY_PRESS_SURFACE_LEFT][frameTurn[Move%4]];
-                                Move++;
+                                interactNPC = false;
+
+                                if(camera.y >= 320) Mix_PlayChannel(-1, gFootStepBushEffect, 0);
+                                else Mix_PlayChannel(-1, gFootStepEffect, 0);
+
                                 break;
                             }
                             case SDLK_UP:
                             {
+                                currentRect = SpriteClips[KEY_PRESS_SURFACE_UP][frameTurn[Move%4]];
+                                Move++;
+                                if(checkNPCsColision(e))
+                                {
+                                    NPCDirection = KEY_PRESS_SURFACE_DOWN;
+                                    encouterNPC = true;
+                                    Move = 0;
+                                    break;
+                                }
                                 if(Y_Position_of_Character >= (ScreenHeight/2) - CharacterHeight || camera.y - VelY < 0)
                                 {
                                     Y_Position_of_Character -= VelY;
@@ -894,13 +1229,28 @@ int main(int argc, char* argv[])
                                 else
                                 {
                                     camera.y -= VelY;
+                                    Position_of_NPC[0][1] += VelY;
+                                    Position_of_NPC[1][1] += VelY;
+                                    Position_of_NPC[2][1] += VelY;
                                 }
-                                currentRect = SpriteClips[KEY_PRESS_SURFACE_UP][frameTurn[Move%4]];
-                                Move++;
+                                interactNPC = false;
+
+                                if(camera.y >= 320) Mix_PlayChannel(-1, gFootStepBushEffect, 0);
+                                else Mix_PlayChannel(-1, gFootStepEffect, 0);
+
                                 break;
                             }
                             case SDLK_DOWN:
                             {
+                                currentRect = SpriteClips[KEY_PRESS_SURFACE_DOWN][frameTurn[Move%4]];
+                                Move++;
+                                if(checkNPCsColision(e))
+                                {
+                                    NPCDirection = KEY_PRESS_SURFACE_UP;
+                                    encouterNPC = true;
+                                    Move = 0;
+                                    break;
+                                }
                                 if(Y_Position_of_Character <= (ScreenHeight/2) - CharacterHeight || camera.y + VelY > ScreenHeight)
                                 {
                                     Y_Position_of_Character += VelY;
@@ -908,10 +1258,22 @@ int main(int argc, char* argv[])
                                 else
                                 {
                                     camera.y += VelY;
+                                    Position_of_NPC[0][1] -= VelY;
+                                    Position_of_NPC[1][1] -= VelY;
+                                    Position_of_NPC[2][1] -= VelY;
                                 }
-                                currentRect = SpriteClips[KEY_PRESS_SURFACE_DOWN][frameTurn[Move%4]];
-                                Move++;
+                                interactNPC = false;
+
+                                if(camera.y >= 320) Mix_PlayChannel(-1, gFootStepBushEffect, 0);
+                                else Mix_PlayChannel(-1, gFootStepEffect, 0);
                                 break;
+                            }
+                            case SDLK_SPACE:
+                            {
+                                if(encouterNPC)
+                                {
+                                     interactNPC = true;
+                                }
                             }
                         }
                     }
@@ -920,15 +1282,56 @@ int main(int argc, char* argv[])
                 float avgFPS = countFrame/ (fpsTimer.getTicks() /1000.f);
                 if(avgFPS > 2000000) avgFPS = 0;
 
-
+                gNPC.render(Position_of_NPC[0][0], Position_of_NPC[0][1], &NPC[NPCDirection][0]);
+                gNPC.render(Position_of_NPC[1][0], Position_of_NPC[1][1], &NPC[NPCDirection][1]);
+                gNPC.render(Position_of_NPC[2][0], Position_of_NPC[2][1], &NPC[NPCDirection][2]);
                 gSpriteSheetTexture.render(X_Position_of_Character, Y_Position_of_Character, &currentRect);
+                gScoreBoard.render(0, 0, &ScoreBoard);
+                loadText(gPLayerScore, to_string(PlayerScore), 12, WhiteTextColor);
+                loadText(gPLayerPokeball, to_string(PlayerPokemonBall), 12, WhiteTextColor);
+                gPLayerScore.render(36, 8);
+                gPLayerPokeball.render(36, 32);
+                if(interactNPC)
+                {
+                    gTextBox.render(60, 380, &TextBox);
 
-                while(Y_Position_of_Character >= 280 && encouterRateBoard[generateRandomNumber()%10] && !run)
+                    if(meetPro)
+                    {
+                        int randTips = generateRandomNumber()%2;
+                        loadText(gNPCsSpeech, ProfSpeech[randTips], 38, GrayTextColor);
+                    }
+                    else if(meetNurse)
+                    {
+                        PlayerHealthBar.w = HealthBarWidth;
+                        loadText(gNPCsSpeech, NurseSpeech[0], 38, GrayTextColor);
+                    }
+                    else if(meetSeller)
+                    {
+                        if(PlayerScore < 100) loadText(gNPCsSpeech, SellerSpeech[0], 38, GrayTextColor);
+                        else
+                        {
+                            PlayerScore -= 100;
+                            loadText(gNPCsSpeech, SellerSpeech[1], 38, GrayTextColor);
+                        }
+                    }
+                    gNPCsSpeech.render(90, 390);
+                }
+                int rate = generateRandomNumber()%10;
+                int randomPokemon = generateRandomNumber()%TOTAL_POKEMON;
+                int FightingTextIndex = 0;
+                int BonusPoint = 20;
+                while(camera.y >= 320  && (rate == 1)  && !run)
                 {
                     //Loop for combat
+
+                    Mix_PauseMusic();
+                    Mix_PlayChannel(-1, gBattleMusic, -1);
                     WildPokemonLevel = generateRandomNumber()%(PlayerPokemonLevel + 1) + 1;
                     while(!quit)
                     {
+
+                        float catchSuccessfullyRate = 100*(((float)HealthBarWidth - (float)WildHealthBar.w)/(float)HealthBarWidth);
+
                         capTimer.start();
                         SDL_RenderClear(gRenderer);
                         gCombatBox.render(0, 0, &combatBox);
@@ -956,14 +1359,39 @@ int main(int argc, char* argv[])
                                         Y_Position_of_Pointer = Position_of_Pointer[0][1];
                                         break;
                                     }
+                                    case SDLK_DOWN:
+                                    {
+                                        X_Position_of_Poiter = Position_of_Pointer[2][0];
+                                        Y_Position_of_Pointer = Position_of_Pointer[2][1];
+                                        break;
+                                    }
+                                    case SDLK_UP:
+                                    {
+                                        X_Position_of_Poiter = Position_of_Pointer[0][0];
+                                        Y_Position_of_Pointer = Position_of_Pointer[0][1];
+                                        break;
+                                    }
                                     case SDLK_SPACE:
                                     {
-                                        if(X_Position_of_Poiter == Position_of_Pointer[0][0])
+                                        if(X_Position_of_Poiter == Position_of_Pointer[0][0] )
                                         {
-                                            fight = true;
-                                            run = false;
+                                            if(Y_Position_of_Pointer == Position_of_Pointer[0][1])
+                                            {
+                                                fight = true;
+                                                run = false;
+                                                FightingTextIndex = PLAYER_CHOOSE_FIGHT;
+                                            }
+                                            else
+                                            {
+                                                pressCatch = true;
+                                                run = false;
+                                            }
                                         }
-                                        else run = true;
+                                        else
+                                        {
+                                            run = true;
+                                            FightingTextIndex = 1;
+                                        }
                                         break;
                                     }
                                     default:
@@ -975,34 +1403,84 @@ int main(int argc, char* argv[])
                             }
                         }
                         gPointer.render(X_Position_of_Poiter, Y_Position_of_Pointer, &Pointer);
-                        if(run == false)
-                        {
+                        currentWildPokemon = pokemonFighting[randomPokemon][FrontOfPokemon];
+                        currentCharacterPokemon = pokemonFighting[IndexOfTarget][BackOfPokemon];
+                        gPokemonFighting.render(430, 100, &currentWildPokemon);
+                        gPokemonFighting.render(90, 240, &currentCharacterPokemon);
+                        gWildHealthBar.render(143, 90, &WildHealthBar);
+                        gPlayerHealthBar.render(477, 300, &PlayerHealthBar);
 
-                            currentWildPokemon = pokemonFighting[3][FrontOfPokemon];
-                            currentCharacterPokemon = pokemonFighting[IndexOfTarget][BackOfPokemon];
-                            gPokemonFighting.render(430, 100, &currentWildPokemon);
-                            gPokemonFighting.render(90, 240, &currentCharacterPokemon);
-                            gWildHealthBar.render(143, 90, &WildHealthBar);
-                            gPlayerHealthBar.render(477, 300, &PlayerHealthBar);
-                            //loadText("Lv " + to_string(PlayerPokemonLevel), "Lv \n" + to_string(WildPokemonLevel), 1, 1);
-                            gPLayerLevel.render(605, 258);
-                            gWildLevel.render(270, 48);
-                            SDL_RenderPresent(gRenderer);
-                            if(fight == true)
+                        //FIRST_ENCOUNTER_TEXT,//0
+                        //WAIT_FOR_PLAYERMOVE,//1
+                        //PLAYER_CHOOSE_FIGHT,//2
+                        //PLAYER_WIN, //3
+                        //PLAYER_LOSE, //4
+                        //PLAYER_CAUGHT, //5
+                        //PLAYER_MISSED, //6
+
+                        if(!run)
+                        {
+                            if(fight)
                             {
                                 WildHealthBar.w -= PlayerPokemonLevel*6;
                                 PlayerHealthBar.w -= WildPokemonLevel*6;
                             }
-                            fight = false;
+                            if(pressCatch && PlayerPokemonBall > 0)
+                            {
+                                int catchRate = generateRandomNumber()%100 + 1;
+                                if(catchRate < catchSuccessfullyRate)
+                                {
+                                    FightingTextIndex = PLAYER_CAUGHT;
+                                    PlayerPokemonBall--;
+                                    PlayerScore += WildPokemonLevel*5 + BonusPoint*(WildPokemonLevel > PlayerPokemonLevel);
+                                    run = true;
+                                }
+                                else
+                                {
+                                    FightingTextIndex = PLAYER_MISSED;
+                                    PlayerHealthBar.w -= WildPokemonLevel*6;
+                                }
+                                pressCatch = false;
 
+                            }
+                            else if(pressCatch && PlayerPokemonBall <= 0)
+                            {
+                                FightingTextIndex = PLAYER_OUT_OF_BALL;
+                                pressCatch = false;
+                            }
+                            fight = false;
                         }
-                        if(run || quit) break;
-                        SDL_RenderPresent(gRenderer);
+
                         if(WildHealthBar.w < 0 || PlayerHealthBar.w < 0)
                         {
-                            if(WildHealthBar.w < 0 && PlayerHealthBar.w > 0) PlayerPokemonLevel++;
+                            if(WildHealthBar.w < 0 && PlayerHealthBar.w > 0)
+                            {
+                                FightingTextIndex = PLAYER_WIN;
+                                PlayerPokemonLevel++;
+                                PlayerScore += WildPokemonLevel*2 + BonusPoint*(WildPokemonLevel > WildPokemonLevel);
+                            }
+                            else
+                            {
+                                FightingTextIndex = PLAYER_LOSE;
+                                PlayerScore -= (PlayerPokemonLevel - WildPokemonLevel + 2)*2;
+                            }
                             run = true;
                         }
+                        if(FightingTextIndex == FIRST_ENCOUNTER_TEXT || FightingTextIndex == PLAYER_CAUGHT) loadText(gFightingSpeech, PokemonEncounterText[FightingTextIndex] + PokemonName[randomPokemon], 38, GrayTextColor);
+                        else loadText(gFightingSpeech, PokemonEncounterText[FightingTextIndex], 38, GrayTextColor);
+
+                        loadText(gWildLevel,"Lv " + to_string(WildPokemonLevel), 38, GrayTextColor);
+                        loadText(gPLayerLevel, "Lv "  + to_string(PlayerPokemonLevel), 38, GrayTextColor);
+                        gFightingSpeech.render(15, 380);
+                        gPLayerLevel.render(570, 258);
+                        gWildLevel.render(240, 48);
+                        SDL_RenderPresent(gRenderer);
+                        if(run || quit)
+                        {
+                            SDL_Delay(1000);
+                            break;
+                        }
+
                         ///Cap FPS
                         countFrame++;
                         int frameTicks = capTimer.getTicks();
@@ -1011,9 +1489,13 @@ int main(int argc, char* argv[])
                             SDL_Delay(ScreenTickPerFrame - frameTicks);
                         }
                     }
-                    if(run || quit) break;
+                    if(run || quit)
+                    {
+                        Mix_HaltChannel(-1);
+                        Mix_ResumeMusic();
+                    }
                 }
-
+                if(PlayerScore < 0) PlayerScore = 0;
                 SDL_RenderPresent(gRenderer);
                 countFrame++;
                 int frameTicks = capTimer.getTicks();
