@@ -1,200 +1,142 @@
-#include <bits/stdc++.h>
+#include "globalVar.h"
+#include "SDLclass.h"
+#include "CheckGameEvent.h"
+#include "PokemonInfo.h"
+#include "loadMedia.h"
+#include "loadMenuScreen.h"
+#include "loadChooseTrainerScreen.h"
+#include "loadGameLectureScreen.h"
+#include "loadFightingGameScreen.h"
+#include "loadMainGameScreen.h"
+#include "closeSDL.h"
 using namespace std;
 
-const int encounterRate[10] = {1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
-const string pokemonList[3] = {"Bulbasaur", "Charmander", "Squirtle"};
-const int bushRow = 5;
-const char moveUp = 'w', moveDown = 's', moveRight = 'd', moveLeft = 'a';
+int X_Position_of_Character = (ScreenWidth/2) - CharacterWidth, Y_Position_of_Character = (ScreenHeight/2) - CharacterHeight;
+int Position_of_Pointer[3][2] = {{345, 375}, {485, 375}, {345, 420}};
+int Position_of_Target[3][2] = {{40, 80}, {90, 175}, {140, 80}};
+int Position_of_NPC[NumberOfNPCs][2] = {{100, 100}, {640, 480}, {1050, 100}};
+int TrainerOrder = 0;
+int IndexOfTarget = 0;
+int randTips;
+SDL_Event e;
+bool meetPro = false, meetNurse = false, meetSeller = false;
+int X_Position_of_Poiter = Position_of_Pointer[0][0], Y_Position_of_Pointer = Position_of_Pointer[0][1];
+int HealthBarWidth = 144;
+SDL_Surface* loadSurface(string path);
 
-int generateRand()
+SDL_Window* gWindow = NULL;
+
+SDL_Texture* loadTexture(string path);
+//Current displayed texture
+SDL_Texture* gCurrentSurface = NULL;
+//The window renderer
+SDL_Renderer* gRenderer = NULL;
+//Rendered texture
+TTF_Font* gFont = NULL;
+
+//The music that will be played
+Mix_Music *gMenuMusic= NULL;
+Mix_Music *gLectureMusic = NULL;
+Mix_Music *gIngameMusic = NULL;
+Mix_Chunk *gBattleMusic = NULL;
+//The sound effects that will be used
+Mix_Chunk *gMenuEffect = NULL;
+Mix_Chunk *gMenuChooseEffect = NULL;
+Mix_Chunk *gFootStepEffect = NULL;
+Mix_Chunk *gFootStepBushEffect = NULL;
+Mix_Chunk *gTackleSound = NULL;
+Mix_Chunk *gLoseSoundEffect = NULL;
+Mix_Chunk *gLevelUp = NULL;
+
+SDL_Rect MenuScreen, MenuOptions[2][2];
+SDL_Rect PokemonBanner;
+SDL_Rect TrainerScreen, Trainer[6];
+SDL_Rect SpriteClips[KEY_PRESS_SURFACE_TOTAL][TOTAL_FRAME];
+SDL_Rect NPC[KEY_PRESS_SURFACE_TOTAL][3];
+SDL_Rect pokemonFighting[TOTAL_POKEMON][Direction];
+SDL_Rect ScoreBoard;
+SDL_Rect LectureBackground;
+SDL_Rect LectureProf;
+SDL_Rect Target;
+SDL_Rect playGround;
+SDL_Rect TextBox;
+SDL_Rect combatBox;
+SDL_Rect Pointer;
+SDL_Rect PlayerHealthBar, WildHealthBar;
+SDL_Rect currentRect;
+SDL_Rect currentCharacterPokemon;
+SDL_Rect camera = {0, 0, ScreenWidth, ScreenHeight};
+SDL_Rect currentWildPokemon = {420, 90, 120, 120};
+
+//color
+SDL_Color GrayTextColor = {65, 64, 63};
+SDL_Color ShadowTextColor = {215, 214, 213};
+SDL_Color WhiteTextColor = {255, 255, 255};
+
+CheckGameEvent GameChecking;
+//rendered texture
+
+///text:
+LTexture gPLayerLevel, gWildLevel;
+LTexture gPLayerScore, gPLayerPokeball;
+LTexture gLectureSpeech;
+LTexture gNPCsSpeech;
+LTexture gFightingSpeech;
+LTexture gAskSwitch;
+///image:
+LTexture gSpriteSheetTexture;
+LTexture gNPC;
+LTexture gPlayGround;
+LTexture gScoreBoard;
+LTexture gCombatBox;
+LTexture gPointer;
+LTexture gPokemonFighting;
+LTexture gPlayerHealthBar, gWildHealthBar;
+LTexture gMenuScreen, gMenuOptions;
+LTexture gTrainerScreen, gTrainer;
+LTexture gLectureBackground;
+LTexture gLectureProf;
+LTexture gTarget;
+LTexture gPokemonBanner;
+LTexture gTextBox;
+PokemonBaseInfo everyPokemon[TOTAL_POKEMON] = {{0, PokemonName[0], 49, 49, 45}, {1, PokemonName[1], 52, 43, 39}, {2, PokemonName[2], 48, 65, 44}, {3, PokemonName[3], 45, 40, 40}, {4, PokemonName[4], 56, 35, 30}, {5, PokemonName[5], 35, 55 ,40}, {6, PokemonName[6], 20, 45, 100}, {7, PokemonName[7], 50, 95, 50}, {8, PokemonName[8], 80, 100, 40}, {9, PokemonName[9], 100, 100, 100}};
+
+int main(int argc, char* argv[])
 {
+
     srand(time(0));
-    return rand();
-}
-
-struct pokemon
-{
-    int number;
-    string name;
-    int level;
-
-    pokemon(int _number, string _name, int _level)
+    if(!init())
     {
-        number = _number;
-        name = _name;
-        level = _level;
-    }
-
-    pokemon(){};
-
-    void chooseNumber()
-    {
-        int num;
-        cin >> num;
-        number = num;
-    }
-};
-
-struct coordinate
-{
-   int rowPosition;
-   int columnPosition;
-   coordinate(){};
-   coordinate(int _row, int _col)
-   {
-       rowPosition = _row;
-       columnPosition = _col;
-   }
-};
-
-void chooseStarterPokemon(pokemon& player)
-{
-    cout << "Choose your pokemon\n";
-    for(unsigned int i = 0; i < sizeof(pokemonList)/sizeof(pokemonList[0]); i++)
-    {
-        cout << "Press " << i << " to choose " << pokemonList[i] << endl;
-    }
-    player.chooseNumber();
-    player.level = 5;
-
-    cout << "Your pokemon is level " << player.level << " " << pokemonList[player.number] << endl;
-    player.name = pokemonList[player.number];
-}
-
-void spawnPlayground(char board[][10], coordinate& player)
-{
-    for(int i = 0; i <= 10; i++)
-    {
-        for(int j = 0; j <=10; j++)
-        {
-            if(i < 5) board[i][j] = '_';
-            else board[i][j] = '*';
-        }
-    }
-    board[player.rowPosition][player.columnPosition] = 'O';
-    for(int i = 0; i < 10; i++)
-        {
-            for(int j = 0; j < 10; j++)
-            {
-                cout << board[i][j] <<setw(2);
-            }
-            cout << '\n';
-        }
-}
-
-void getMove(char& moveDirection)
-{
-    cout << "Nhap Huong Di chuyen: ";
-    cin >> moveDirection;
-}
-
-void updatePlayGround(const char& moveDirection, char board[][10], coordinate& player)
-{
-        if(moveDirection == moveUp || moveDirection == moveLeft || moveDirection == moveDown || moveDirection == moveRight)
-        {
-
-            if(player.rowPosition < bushRow)  board[player.rowPosition][player.columnPosition] = '_';
-            else board[player.rowPosition][player.columnPosition] = '*';
-
-            if(moveDirection == moveUp)
-            {
-               player.rowPosition--;
-               board[player.rowPosition - 1][player.columnPosition] = 'O';
-            }
-
-            else if(moveDirection == moveLeft)
-            {
-                board[player.rowPosition][player.columnPosition - 1] = 'O';
-                player.columnPosition--;
-            }
-            else if(moveDirection == moveDown)
-            {
-                board[player.rowPosition + 1][player.columnPosition] = 'O';
-                player.rowPosition++;
-            }
-            else if(moveDirection == moveRight)
-            {
-                board[player.rowPosition][player.columnPosition + 1] = 'O';
-                player.columnPosition++;
-            }
-        }
-
-        for(int i = 0; i < 10; i++)
-        {
-            for(int j = 0; j < 10; j++)
-            {
-                cout << board[i][j] << setw(2);
-            }
-            cout << '\n';
-        }
-}
-
-void combatResult(pokemon& player, pokemon& wild, bool& gameStatus)
-{
-    if(player.level >= wild.level)
-    {
-        cout << "Your " << player.name << " used Tackle\n";
-        cout << "Wild " << wild.name << " has faint\n";
-        player.level++;
-        cout << "Your " << player.name << " is now level " << player.level << endl;
+        cout << "Failed to initialize!" << endl;
     }
     else
     {
-        cout << "Wild " << wild.name << " used Tackle\n";
-        cout << "Your " << player.name << " has faint\n";
-        gameStatus = false;
+        if(!loadMedia())
+        {
+            cout << "Failed to load media" << endl;
+        }
+        else
+        {
+
+            int TrainerOrder = 0;
+            int NPCDirection = KEY_PRESS_SURFACE_DOWN;
+            int PlayerScore = 100, PlayerPokemonBall = 10;
+            int countFrame = 0, Move = 0;
+            LTimer fpsTimer;
+            LTimer capTimer;
+
+            //Start Game Menu:
+            fpsTimer.start();
+            //Game Loop
+            loadGameMenuScreen(capTimer, countFrame);
+            loadGameChoosingPlayer(capTimer, countFrame);
+            loadGameLectureScreen(capTimer, countFrame);
+            PokemonInGameInfo PlayerPokemon(IndexOfTarget, 5);
+            loadMainGameScreen(capTimer, PlayerPokemon, Move, NPCDirection, countFrame, fpsTimer);
+        }
+
     }
+    close();
+
+    return 0;
 }
-
-void battle(pokemon player, pokemon wild, bool& gameStatus)
-{
-     int a = (generateRand() % 10);
-            //cout << "Your number is " << a << endl;
-            if(encounterRate[a] == 1)
-            {
-                char FoR;
-                wild.name = pokemonList[a%3];
-                wild.level = generateRand() % (player.level + a);
-                cout << "You encounter a wild " << wild.name << " level " << wild.level<< endl;
-                do
-                {
-                    cout << "Press F to fight, Press R to run\n";
-                    cin >> FoR;
-
-                    if(FoR == 'f')
-                    {
-                        combatResult(player, wild, gameStatus);
-                    }
-                    else if(FoR == 'r') cout << "You have ran away from " << wild.name << endl;
-                    else cout << "Wrong button!!\n";
-                }while(FoR != 'f' && FoR != 'r');
-            }
-}
-
-
-
-int main()
-{
-    char board[10][10], moveDirection;
-    string playerPokemon, wildPokemon;
-    bool gameStatus = true;
-    pokemon player, wild;
-    coordinate playerLocation(3, 4);
-
-    //Pokemon starter pack
-    chooseStarterPokemon(player);
-    //spawn playground;
-    spawnPlayground(board,playerLocation);
-    //player move
-    do
-    {
-        getMove(moveDirection);
-        updatePlayGround(moveDirection, board, playerLocation);
-
-        if(playerLocation.rowPosition >= bushRow)
-            //encounter pokemon
-            battle(player, wild, gameStatus);
-
-    }while(gameStatus == true);
-}
-

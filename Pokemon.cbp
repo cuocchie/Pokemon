@@ -38,9 +38,28 @@
 			<Add option="-lSDL2_ttf -lSDL2_mixer" />
 			<Add directory="D:/Download/SDL2_image-2.0.5/i686-w64-mingw32/lib" />
 		</Linker>
-		<Unit filename="SDL.cpp">
-			<Option weight="0" />
-		</Unit>
+		<Unit filename="CheckGameEvent.cpp" />
+		<Unit filename="CheckGameEvent.h" />
+		<Unit filename="PokemonInfo.cpp" />
+		<Unit filename="PokemonInfo.h" />
+		<Unit filename="SDLclass.cpp" />
+		<Unit filename="SDLclass.h" />
+		<Unit filename="closeSDL.cpp" />
+		<Unit filename="closeSDL.h" />
+		<Unit filename="globalVar.h" />
+		<Unit filename="loadChooseTrainerScreen.cpp" />
+		<Unit filename="loadChooseTrainerScreen.h" />
+		<Unit filename="loadFightingGameScreen.cpp" />
+		<Unit filename="loadFightingGameScreen.h" />
+		<Unit filename="loadGameLectureScreen.cpp" />
+		<Unit filename="loadGameLectureScreen.h" />
+		<Unit filename="loadMainGameScreen.cpp" />
+		<Unit filename="loadMainGameScreen.h" />
+		<Unit filename="loadMedia.cpp" />
+		<Unit filename="loadMedia.h" />
+		<Unit filename="loadMenuScreen.cpp" />
+		<Unit filename="loadMenuScreen.h" />
+		<Unit filename="main.cpp" />
 		<Extensions>
 			<code_completion />
 			<envvars />

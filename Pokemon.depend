@@ -1,10 +1,20 @@
 # depslib dependency file v1.0
-1589387465 source:d:\project\cpplearn\gamecode\pokemon\sdl.cpp
+1589779801 source:d:\project\cpplearn\gamecode\pokemon\sdl.cpp
 	<SDL.h>
 	<SDL_image.h>
 	<SDL_ttf.h>
 	<SDL_mixer.h>
 	<bits/stdc++.h>
+	"SDLclass.h"
+	"globalVar.h"
+	"CheckGameEvent.h"
+	"PokemonInfo.h"
+	"loadMedia.h"
+	"loadMenuScreen.h"
+	"loadChooseTrainerScreen.h"
+	"loadGameLectureScreen.h"
+	"loadFightingGameScreen.h"
+	"loadMainGameScreen.h"
 
 1561870368 d:\download\sdl2_image-2.0.5\i686-w64-mingw32\include\sdl2\sdl_image.h
 	"SDL.h"
@@ -25,4 +35,124 @@
 	"SDL_version.h"
 	"begin_code.h"
 	"close_code.h"
+
+1589766687 d:\project\cpplearn\gamecode\pokemon\ltimer.h
+	<bits/stdc++.h>
+	<SDL.h>
+
+1589767510 source:d:\project\cpplearn\gamecode\pokemon\ltimer.cpp
+	"LTimer.h"
+
+1589776215 d:\project\cpplearn\gamecode\pokemon\globalvar.h
+	<SDL.h>
+	<SDL_image.h>
+	<SDL_ttf.h>
+	<SDL_mixer.h>
+	<bits/stdc++.h>
+
+1589774797 d:\project\cpplearn\gamecode\pokemon\sdlclass.h
+	<bits/stdc++.h>
+	<SDL.h>
+	"globalVar.h"
+
+1589774797 source:d:\project\cpplearn\gamecode\pokemon\sdlclass.cpp
+	"SDLclass.h"
+	<bits/stdc++.h>
+	<SDL.h>
+	"globalVar.h"
+
+1589770081 source:d:\project\cpplearn\gamecode\pokemon\globalvar.h
+	<SDL.h>
+	<SDL_image.h>
+	<SDL_ttf.h>
+	<SDL_mixer.h>
+	<bits/stdc++.h>
+
+1589770353 source:d:\project\cpplearn\gamecode\pokemon\sdlclass.h
+	<bits/stdc++.h>
+	<SDL.h>
+	"globalVar.h"
+
+1589772668 d:\project\cpplearn\gamecode\pokemon\textureclass.h
+	<bits/stdc++.h>
+	<SDL.h>
+
+1589771845 source:d:\project\cpplearn\gamecode\pokemon\textureclass.cpp
+	"textureClass.h"
+	"globalVar.h"
+
+1589777118 d:\project\cpplearn\gamecode\pokemon\checkgameevent.h
+	<bits/stdc++.h>
+	<SDL.h>
+	<SDL_mixer.h>
+
+1589775294 source:d:\project\cpplearn\gamecode\pokemon\checkgameevent.cpp
+	"CheckGameEvent.h"
+	"globalVar.h"
+
+1589775972 d:\project\cpplearn\gamecode\pokemon\pokemoninfo.h
+	<bits/stdc++.h>
+	"globalVar.h"
+
+1589776283 source:d:\project\cpplearn\gamecode\pokemon\pokemoninfo.cpp
+	"PokemonInfo.h"
+
+1589776859 d:\project\cpplearn\gamecode\pokemon\loadmedia.h
+	"globalVar.h"
+	"SDLclass.h"
+
+1589776654 source:d:\project\cpplearn\gamecode\pokemon\loadmedia.cpp
+	"loadMedia.h"
+
+1589777135 d:\project\cpplearn\gamecode\pokemon\loadmenuscreen.h
+	"globalVar.h"
+	"SDLclass.h"
+	"CheckGameEvent.h"
+	"loadMedia.h"
+
+1589777016 source:d:\project\cpplearn\gamecode\pokemon\loadmenuscreen.cpp
+	"loadMenuScreen.h"
+
+1589777322 d:\project\cpplearn\gamecode\pokemon\loadchoosetrainerscreen.h
+	"globalVar.h"
+	"loadMedia.h"
+	"CheckGameEvent.h"
+
+1589777285 source:d:\project\cpplearn\gamecode\pokemon\loadchoosetrainerscreen.cpp
+	"loadChooseTrainerScreen.h"
+
+1589779154 source:d:\project\cpplearn\gamecode\pokemon\loadgamelecturescreen.cpp
+	"loadGameLectureScreen.h"
+
+1589779185 d:\project\cpplearn\gamecode\pokemon\loadgamelecturescreen.h
+	"globalVar.h"
+	"SDLclass.h"
+	"loadMedia.h"
+	"CheckGameEvent.h"
+
+1589779476 source:d:\project\cpplearn\gamecode\pokemon\loadfightinggamescreen.cpp
+	"loadFightingGameScreen.h"
+
+1589779515 d:\project\cpplearn\gamecode\pokemon\loadfightinggamescreen.h
+	"globalVar.h"
+	"PokemonInfo.h"
+	"CheckGameEvent.h"
+	"loadMedia.h"
+
+1589779869 d:\project\cpplearn\gamecode\pokemon\loadmaingamescreen.h
+	"globalVar.h"
+	"loadMedia.h"
+	"PokemonInfo.h"
+	"CheckGameEvent.h"
+	"loadFightingGameScreen.h"
+
+1589779780 source:d:\project\cpplearn\gamecode\pokemon\loadmaingamescreen.cpp
+	"loadMainGameScreen.h"
+
+1589780085 source:d:\project\cpplearn\gamecode\pokemon\closesdl.cpp
+	"closeSDL.h"
+
+1589780085 d:\project\cpplearn\gamecode\pokemon\closesdl.h
+	"globalVar.h"
+	"loadMedia.h"
 
