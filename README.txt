@@ -31,7 +31,7 @@ Credit:
 	+ Pokemon Image: https://www.spriters-resource.com/ds_dsi/pokemondiamondpearl/sheet/18618/
 	+ Playground: https://prowiki.info/index.php?title=File:Safari_Entrance.png
 	
-	(Node: All the images were editted for the game)
+	(Note: All the images were editted for the game)
 - Font: 
 	+ PIXELFONT: https://fonts2u.com/pokemon-pixel-font-regular.font
 	+ ARCADECLASSIC: https://www.1001fonts.com/arcadeclassic-font.html (editting only)
